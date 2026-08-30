@@ -37,6 +37,8 @@ jobs:
       - name: Update database
         env:
           FULL_SCAN: ${{ inputs.full_scan || 'false' }}
+          MAL_CLIENT_ID: ${{ secrets.MAL_CLIENT_ID }}
+          PYTHONUNBUFFERED: "1"
         run: |
           args=()
           if [[ "$FULL_SCAN" == "true" ]]; then args+=(--full); fi

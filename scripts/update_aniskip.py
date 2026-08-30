@@ -17,19 +17,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-ANILIST_URL = "https://graphql.anilist.co"
+MAL_API_URL = "https://api.myanimelist.net/v2"
 ANISKIP_URL = "https://api.aniskip.com/v2/skip-times"
 USER_AGENT = "aniskip-daily-updater/1.0 (+GitHub Actions)"
 
 
-def request_json(url: str, *, payload: dict[str, Any] | None = None, attempts: int = 6) -> Any:
-    body = json.dumps(payload).encode() if payload is not None else None
+def request_json(url: str, *, extra_headers: dict[str, str] | None = None, attempts: int = 6) -> Any:
     headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
-    if body is not None:
-        headers["Content-Type"] = "application/json"
+    headers.update(extra_headers or {})
     for attempt in range(attempts):
         try:
-            req = urllib.request.Request(url, data=body, headers=headers, method="POST" if body else "GET")
+            req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, timeout=45) as response:
                 return json.load(response)
         except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
@@ -44,31 +42,26 @@ def request_json(url: str, *, payload: dict[str, Any] | None = None, attempts: i
     raise RuntimeError("unreachable")
 
 
-ANILIST_QUERY = """
-query ($page: Int!, $status: MediaStatus) {
-  Page(page: $page, perPage: 50) {
-    pageInfo { hasNextPage }
-    media(type: ANIME, status: $status, sort: ID_DESC) {
-      id idMal format status episodes
-      title { romaji english }
-      nextAiringEpisode { episode airingAt }
-    }
-  }
-}
-"""
+def mal_get(path_or_url: str, client_id: str) -> Any:
+    url = path_or_url if path_or_url.startswith("https://") else f"{MAL_API_URL}{path_or_url}"
+    return request_json(url, extra_headers={"X-MAL-CLIENT-ID": client_id})
 
 
-def discover_active() -> list[dict[str, Any]]:
-    media: list[dict[str, Any]] = []
-    page = 1
-    while True:
-        result = request_json(ANILIST_URL, payload={"query": ANILIST_QUERY, "variables": {"page": page, "status": "RELEASING"}})
-        current = result["data"]["Page"]
-        media.extend(x for x in current["media"] if x.get("idMal"))
-        if not current["pageInfo"]["hasNextPage"]:
-            return media
-        page += 1
-        time.sleep(0.7)
+def discover_active(client_id: str) -> list[dict[str, Any]]:
+    """Get currently airing titles from official MAL API v2 only."""
+    fields = "id,title,media_type,status,num_episodes,start_date,end_date,broadcast"
+    url = f"/anime/ranking?ranking_type=airing&limit=500&fields={urllib.parse.quote(fields)}"
+    found: dict[int, dict[str, Any]] = {}
+    while url:
+        page = mal_get(url, client_id)
+        for row in page.get("data", []):
+            node = row.get("node") or {}
+            if node.get("id") and node.get("status") == "currently_airing":
+                found[int(node["id"])] = node
+        url = (page.get("paging") or {}).get("next")
+        if url:
+            time.sleep(0.5)
+    return list(found.values())
 
 
 def normalize_segment(results: list[dict[str, Any]]) -> dict[str, dict[str, float]]:
@@ -113,16 +106,19 @@ def stable_shard(mal_id: int, episode: int, shards: int) -> int:
 
 
 def build_jobs(db: dict[str, Any], active: list[dict[str, Any]], full: bool) -> tuple[set[tuple[int, int]], dict[int, dict[str, Any]]]:
-    active_by_mal = {int(x["idMal"]): x for x in active}
+    active_by_mal = {int(x["id"]): x for x in active}
     jobs: set[tuple[int, int]] = set()
 
     # Always refresh all already-aired episodes of currently releasing shows.
     for mal_id, item in active_by_mal.items():
-        next_ep = (item.get("nextAiringEpisode") or {}).get("episode")
-        aired = max(0, int(next_ep) - 1) if next_ep else 0
-        existing = db.get(str(item["id"]), {}).get("episodes", {})
+        total = item.get("num_episodes")
+        existing = db.get(str(mal_id), {}).get("episodes", {})
         max_known = max((int(x) for x in existing), default=0)
-        upper = max(aired, max_known)
+        # MAL does not expose a next-episode number. Probe the next two episode
+        # numbers for airing shows; only found AniSkip records are stored.
+        upper = max(max_known + 2, int(total or 0))
+        if max_known == 0 and not total:
+            upper = 4
         for episode in range(1, upper + 1):
             if episode not in range(max(1, upper - 3), upper + 1) and str(episode) in existing:
                 continue
@@ -142,44 +138,73 @@ def build_jobs(db: dict[str, Any], active: list[dict[str, Any]], full: bool) -> 
     return jobs, active_by_mal
 
 
+def migrate_to_mal_keys(db: dict[str, Any]) -> tuple[dict[str, Any], int]:
+    migrated: dict[str, Any] = {}
+    count = 0
+    for old_key, entry in db.items():
+        if not isinstance(entry, dict) or not isinstance(entry.get("malId"), int):
+            continue
+        mal_key = str(entry["malId"])
+        clean = dict(entry)
+        if "anilistId" in clean:
+            clean.pop("anilistId")
+            count += 1
+        if old_key != mal_key:
+            count += 1
+        if mal_key in migrated:
+            migrated[mal_key].setdefault("episodes", {}).update(clean.get("episodes") or {})
+        else:
+            migrated[mal_key] = clean
+    if len(migrated) < 100:
+        raise RuntimeError("MAL-key migration produced an unexpectedly small database")
+    return migrated, count
+
+
 async def update(path: Path, concurrency: int, full: bool) -> int:
     original = path.read_bytes()
     db = json.loads(original)
     if not isinstance(db, dict) or len(db) < 100:
         raise RuntimeError("Refusing to update: input database is unexpectedly small or invalid")
 
-    active = discover_active()
+    db, migration_changes = migrate_to_mal_keys(db)
+    client_id = os.environ.get("MAL_CLIENT_ID", "").strip()
+    if not client_id:
+        raise RuntimeError("MAL_CLIENT_ID is missing. Add it in GitHub Actions repository secrets.")
+    active = discover_active(client_id)
     if not active:
-        raise RuntimeError("AniList returned no releasing anime; refusing to continue")
+        raise RuntimeError("Official MAL API returned no currently airing anime; refusing to continue")
     jobs, active_by_mal = build_jobs(db, active, full)
-    print(f"Active anime: {len(active)}; AniSkip checks: {len(jobs)}")
+    print(f"MAL currently airing anime: {len(active)}; AniSkip checks: {len(jobs)}", flush=True)
 
     semaphore = asyncio.Semaphore(concurrency)
-    tasks = [fetch_skip(mal, episode, semaphore) for mal, episode in sorted(jobs)]
-    results = await asyncio.gather(*tasks)
+    tasks = [asyncio.create_task(fetch_skip(mal, episode, semaphore)) for mal, episode in sorted(jobs)]
+    results = []
+    for completed, task in enumerate(asyncio.as_completed(tasks), 1):
+        results.append(await task)
+        if completed % 100 == 0 or completed == len(tasks):
+            print(f"Checked {completed}/{len(tasks)} episodes", flush=True)
     errors = [error for _, _, _, error in results if error]
     if results and len(errors) / len(results) > 0.20:
         raise RuntimeError(f"AniSkip failure rate too high ({len(errors)}/{len(results)}); no file written")
 
-    anilist_for_mal = {int(v.get("malId")): k for k, v in db.items() if isinstance(v, dict) and isinstance(v.get("malId"), int)}
-    changed = 0
+    changed = migration_changes
     for mal_id, episode, segment, error in results:
         if error or not segment:
             continue
-        anilist_id = anilist_for_mal.get(mal_id)
         meta = active_by_mal.get(mal_id)
-        if anilist_id is None and meta:
-            anilist_id = str(meta["id"])
-            title = meta.get("title") or {}
-            db[anilist_id] = {
-                "anilistId": int(anilist_id), "malId": mal_id,
-                "title": title.get("english") or title.get("romaji") or f"MAL {mal_id}",
-                "format": meta.get("format"), "totalEpisodes": meta.get("episodes"), "episodes": {}
+        mal_key = str(mal_id)
+        if mal_key not in db and meta:
+            db[mal_key] = {
+                "malId": mal_id, "title": meta.get("title") or f"MAL {mal_id}",
+                "format": str(meta.get("media_type") or "unknown").upper(),
+                "totalEpisodes": meta.get("num_episodes") or None, "episodes": {}
             }
-            anilist_for_mal[mal_id] = anilist_id
-        if anilist_id is None:
+        if mal_key not in db:
             continue
-        episodes = db[anilist_id].setdefault("episodes", {})
+        if meta and meta.get("num_episodes") and db[mal_key].get("totalEpisodes") != meta["num_episodes"]:
+            db[mal_key]["totalEpisodes"] = meta["num_episodes"]
+            changed += 1
+        episodes = db[mal_key].setdefault("episodes", {})
         if episodes.get(str(episode)) != segment:
             episodes[str(episode)] = segment
             changed += 1
@@ -191,7 +216,7 @@ async def update(path: Path, concurrency: int, full: bool) -> int:
         temp = path.with_suffix(path.suffix + ".tmp")
         temp.write_bytes(encoded)
         os.replace(temp, path)
-    print(f"Changed episode records: {changed}; request errors: {len(errors)}")
+    print(f"Changed/migrated records: {changed}; request errors: {len(errors)}", flush=True)
     return changed
 
 

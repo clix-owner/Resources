@@ -1,17 +1,21 @@
 # AniSkip daily updater
 
-This repository-ready package updates `aniskip_data.json` every day using
-AniList metadata and the official AniSkip v2 API.
+This repository-ready package updates `aniskip_data.json` every day using the
+official MyAnimeList API v2 and the official AniSkip v2 API. The JSON is keyed
+by MAL ID and does not depend on AniList.
 
 ## Setup
 
 1. Copy all files to the root of a GitHub repository.
-2. Push to the repository's default branch.
-3. Open **Actions → Update AniSkip database → Run workflow** for the first test.
+2. Create a MyAnimeList API application and copy its Client ID.
+3. Add it at **Settings → Secrets and variables → Actions → New repository
+   secret** with the exact name `MAL_CLIENT_ID`.
+4. Push to the repository's default branch.
+5. Open **Actions → Update AniSkip database → Run workflow** for the first test.
 
-No API key or repository secret is required. The workflow has `contents: write`
-permission, validates the JSON, preserves old data, and commits only when an
-episode timestamp actually changes.
+The workflow has `contents: write` permission, validates the JSON, migrates old
+AniList-keyed records to MAL keys, preserves timestamps, prints live progress,
+and commits only when data actually changes.
 
 Daily runs update currently airing shows and one deterministic slice of the
 older catalogue. This catches newly submitted historical timestamps over a
