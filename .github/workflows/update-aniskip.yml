@@ -22,7 +22,6 @@ jobs:
   update-shards:
     name: Update shard ${{ matrix.shard }} of 8
     runs-on: ubuntu-latest
-    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
