@@ -86,9 +86,11 @@ def normalize_segment(results: list[dict[str, Any]]) -> dict[str, dict[str, floa
 
 
 async def fetch_skip(mal_id: int, episode: int, semaphore: asyncio.Semaphore) -> tuple[int, int, dict[str, Any] | None, str | None]:
+    # episodeLength is optional. Do NOT send 0: current AniSkip validation can
+    # reject it, which turns every lookup into an HTTP 4xx failure.
     query = urllib.parse.urlencode([
         ("types[]", "op"), ("types[]", "ed"), ("types[]", "mixed-op"),
-        ("types[]", "mixed-ed"), ("episodeLength", "0")
+        ("types[]", "mixed-ed")
     ])
     url = f"{ANISKIP_URL}/{mal_id}/{episode}?{query}"
     async with semaphore:
@@ -181,6 +183,23 @@ async def update(path: Path, concurrency: int, full: bool, shard_index: int, sha
         flush=True,
     )
 
+    # Fail fast before spending hours retrying a broken/blocked endpoint.
+    # Any valid JSON response (including found=false) proves the API is reachable.
+    if jobs:
+        test_mal, test_episode = sorted(jobs)[0]
+        test_query = urllib.parse.urlencode([("types[]", "op"), ("types[]", "ed")])
+        test_url = f"{ANISKIP_URL}/{test_mal}/{test_episode}?{test_query}"
+        try:
+            probe = await asyncio.to_thread(request_json, test_url, attempts=2)
+            if not isinstance(probe, dict) or "found" not in probe:
+                raise RuntimeError(f"unexpected response: {str(probe)[:300]}")
+            print(f"AniSkip preflight OK: MAL {test_mal} episode {test_episode}", flush=True)
+        except Exception as exc:
+            raise RuntimeError(
+                f"AniSkip preflight failed; aborting before bulk checks: "
+                f"{type(exc).__name__}: {exc}"
+            ) from exc
+
     semaphore = asyncio.Semaphore(concurrency)
     tasks = [asyncio.create_task(fetch_skip(mal, episode, semaphore)) for mal, episode in sorted(jobs)]
     results = []
@@ -192,6 +211,10 @@ async def update(path: Path, concurrency: int, full: bool, shard_index: int, sha
                 flush=True,
             )
     errors = [error for _, _, _, error in results if error]
+    if errors:
+        print("AniSkip sample errors:", flush=True)
+        for error in errors[:5]:
+            print(f"  - {error}", flush=True)
     if results and len(errors) / len(results) > 0.20:
         raise RuntimeError(f"AniSkip failure rate too high ({len(errors)}/{len(results)}); no file written")
 

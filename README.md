@@ -27,3 +27,12 @@ of the older catalogue. A manual workflow run can enable `full_scan`.
 
 If organization/repository policy blocks the push, enable **Settings → Actions
 → General → Workflow permissions → Read and write permissions**.
+
+
+## Reliability fix
+
+The updater no longer sends `episodeLength=0` to AniSkip. It also performs a
+two-attempt AniSkip preflight before starting a shard, so an API outage,
+blocking response, or incompatible endpoint fails quickly instead of retrying
+1000+ episode requests for hours. Up to five sample request errors are printed
+when a partial outage occurs.
