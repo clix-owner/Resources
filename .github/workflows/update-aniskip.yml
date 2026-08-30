@@ -1,0 +1,59 @@
+name: Update AniSkip database
+
+on:
+  schedule:
+    # Daily at 00:17 UTC (05:47 Sri Lanka time)
+    - cron: "17 0 * * *"
+  workflow_dispatch:
+    inputs:
+      full_scan:
+        description: Check every known episode (slow)
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: aniskip-database-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Update database
+        env:
+          FULL_SCAN: ${{ inputs.full_scan || 'false' }}
+        run: |
+          args=()
+          if [[ "$FULL_SCAN" == "true" ]]; then args+=(--full); fi
+          python scripts/update_aniskip.py "${args[@]}"
+
+      - name: Validate JSON
+        run: python -m json.tool aniskip_data.json > /dev/null
+
+      - name: Commit real changes only
+        run: |
+          if git diff --quiet -- aniskip_data.json; then
+            echo "AniSkip has no new or changed timestamps."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add aniskip_data.json
+          git commit -m "chore: update AniSkip database"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
