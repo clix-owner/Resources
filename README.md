@@ -17,10 +17,13 @@ The workflow has `contents: write` permission, validates the JSON, migrates old
 AniList-keyed records to MAL keys, preserves timestamps, prints live progress,
 and commits only when data actually changes.
 
-Daily runs update currently airing shows and one deterministic slice of the
-older catalogue. This catches newly submitted historical timestamps over a
-90-day cycle without sending an unsafe number of requests in one run. A manual
-workflow run can enable `full_scan`, but it may take much longer.
+Every run uses eight deterministic parallel shards. Each episode belongs to
+exactly one shard, each shard uploads its result, and a final job validates and
+merges all results before making one commit. A full scan of 67,535 checks
+therefore becomes roughly 8,442 checks per job instead of one giant job.
+
+Daily non-full runs update currently airing shows and one deterministic slice
+of the older catalogue. A manual workflow run can enable `full_scan`.
 
 If organization/repository policy blocks the push, enable **Settings → Actions
 → General → Workflow permissions → Read and write permissions**.

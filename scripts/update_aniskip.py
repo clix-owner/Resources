@@ -100,7 +100,7 @@ async def fetch_skip(mal_id: int, episode: int, semaphore: asyncio.Semaphore) ->
             return mal_id, episode, None, f"{type(exc).__name__}: {exc}"
 
 
-def stable_shard(mal_id: int, episode: int, shards: int) -> int:
+def stable_shard(mal_id: int, episode: int | str, shards: int) -> int:
     digest = hashlib.blake2s(f"{mal_id}:{episode}".encode(), digest_size=4).digest()
     return int.from_bytes(digest, "big") % shards
 
@@ -113,7 +113,7 @@ def build_jobs(db: dict[str, Any], active: list[dict[str, Any]], full: bool) -> 
     for mal_id, item in active_by_mal.items():
         total = item.get("num_episodes")
         existing = db.get(str(mal_id), {}).get("episodes", {})
-        max_known = max((int(x) for x in existing), default=0)
+        max_known = max((int(float(x)) for x in existing), default=0)
         # MAL does not expose a next-episode number. Probe the next two episode
         # numbers for airing shows; only found AniSkip records are stored.
         upper = max(max_known + 2, int(total or 0))
@@ -160,7 +160,7 @@ def migrate_to_mal_keys(db: dict[str, Any]) -> tuple[dict[str, Any], int]:
     return migrated, count
 
 
-async def update(path: Path, concurrency: int, full: bool) -> int:
+async def update(path: Path, concurrency: int, full: bool, shard_index: int, shard_count: int) -> int:
     original = path.read_bytes()
     db = json.loads(original)
     if not isinstance(db, dict) or len(db) < 100:
@@ -174,15 +174,23 @@ async def update(path: Path, concurrency: int, full: bool) -> int:
     if not active:
         raise RuntimeError("Official MAL API returned no currently airing anime; refusing to continue")
     jobs, active_by_mal = build_jobs(db, active, full)
-    print(f"MAL currently airing anime: {len(active)}; AniSkip checks: {len(jobs)}", flush=True)
+    jobs = {job for job in jobs if stable_shard(job[0], job[1], shard_count) == shard_index}
+    print(
+        f"Shard {shard_index + 1}/{shard_count} | MAL currently airing anime: "
+        f"{len(active)} | AniSkip checks: {len(jobs)}",
+        flush=True,
+    )
 
     semaphore = asyncio.Semaphore(concurrency)
     tasks = [asyncio.create_task(fetch_skip(mal, episode, semaphore)) for mal, episode in sorted(jobs)]
     results = []
     for completed, task in enumerate(asyncio.as_completed(tasks), 1):
         results.append(await task)
-        if completed % 100 == 0 or completed == len(tasks):
-            print(f"Checked {completed}/{len(tasks)} episodes", flush=True)
+        if completed == 1 or completed % 25 == 0 or completed == len(tasks):
+            print(
+                f"Shard {shard_index + 1}/{shard_count}: checked {completed}/{len(tasks)} episodes",
+                flush=True,
+            )
     errors = [error for _, _, _, error in results if error]
     if results and len(errors) / len(results) > 0.20:
         raise RuntimeError(f"AniSkip failure rate too high ({len(errors)}/{len(results)}); no file written")
@@ -225,10 +233,14 @@ def main() -> None:
     parser.add_argument("--file", type=Path, default=Path("aniskip_data.json"))
     parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--full", action="store_true", help="Check every known episode (manual runs only)")
+    parser.add_argument("--shard-index", type=int, default=0)
+    parser.add_argument("--shard-count", type=int, default=1)
     args = parser.parse_args()
     if not 1 <= args.concurrency <= 20:
         parser.error("--concurrency must be between 1 and 20")
-    asyncio.run(update(args.file, args.concurrency, args.full))
+    if args.shard_count < 1 or not 0 <= args.shard_index < args.shard_count:
+        parser.error("shard index must be between 0 and shard-count - 1")
+    asyncio.run(update(args.file, args.concurrency, args.full, args.shard_index, args.shard_count))
 
 
 if __name__ == "__main__":

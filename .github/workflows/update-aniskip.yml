@@ -2,12 +2,11 @@ name: Update AniSkip database
 
 on:
   schedule:
-    # Daily at 00:17 UTC (05:47 Sri Lanka time)
     - cron: "17 0 * * *"
   workflow_dispatch:
     inputs:
       full_scan:
-        description: Check every known episode (slow)
+        description: Check every known and missing episode
         required: false
         default: false
         type: boolean
@@ -20,11 +19,53 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  update:
+  update-shards:
+    name: Update shard ${{ matrix.shard }} of 8
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
     steps:
       - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Update assigned shard
+        env:
+          FULL_SCAN: ${{ inputs.full_scan || 'false' }}
+          MAL_CLIENT_ID: ${{ secrets.MAL_CLIENT_ID }}
+          PYTHONUNBUFFERED: "1"
+        run: |
+          args=()
+          if [[ "$FULL_SCAN" == "true" ]]; then args+=(--full); fi
+          python scripts/update_aniskip.py \
+            --concurrency 4 \
+            --shard-index "${{ matrix.shard }}" \
+            --shard-count 8 \
+            "${args[@]}"
+
+      - name: Validate shard JSON
+        run: python -m json.tool aniskip_data.json > /dev/null
+
+      - name: Upload shard result
+        uses: actions/upload-artifact@v4
+        with:
+          name: shard-${{ matrix.shard }}
+          path: aniskip_data.json
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Merge and commit shards
+    needs: update-shards
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout latest repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -34,17 +75,16 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Update database
-        env:
-          FULL_SCAN: ${{ inputs.full_scan || 'false' }}
-          MAL_CLIENT_ID: ${{ secrets.MAL_CLIENT_ID }}
-          PYTHONUNBUFFERED: "1"
-        run: |
-          args=()
-          if [[ "$FULL_SCAN" == "true" ]]; then args+=(--full); fi
-          python scripts/update_aniskip.py "${args[@]}"
+      - name: Download all shard results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: shard-*
+          path: shard-results
 
-      - name: Validate JSON
+      - name: Merge shards
+        run: python scripts/merge_shards.py --shard-count 8
+
+      - name: Validate merged JSON
         run: python -m json.tool aniskip_data.json > /dev/null
 
       - name: Commit real changes only
