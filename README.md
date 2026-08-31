@@ -1,29 +1,34 @@
-# AniSkip daily updater
+# Anime Skip DB Editor for Vercel
 
-This repository-ready package updates `aniskip_data.json` every day using the
-official MyAnimeList API v2 and the official AniSkip v2 API. The JSON is keyed
-by MAL ID and does not depend on AniList.
+A small protected web UI and serverless API that updates an existing AniSkip-style JSON database in GitHub.
 
-## Setup
+## Behaviour
 
-1. Copy all files to the root of a GitHub repository.
-2. Create a MyAnimeList API application and copy its Client ID.
-3. Add it at **Settings → Secrets and variables → Actions → New repository
-   secret** with the exact name `MAL_CLIENT_ID`.
-4. Push to the repository's default branch.
-5. Open **Actions → Update AniSkip database → Run workflow** for the first test.
+- Looks up records by `malId` and episode number.
+- Replaces the complete existing episode timestamp record when it exists.
+- Creates a missing episode record.
+- If the MAL anime itself is missing, AniList is queried by MAL ID and the normal top-level AniList ID record is created automatically.
+- Accepts opening and credits start/end timestamps manually in seconds and writes them as database `op` and `ed` ranges.
+- Uses GitHub's Git Data API, suitable for the included JSON file which is larger than the simple Contents API read limit.
+- Creates a normal Git commit for every successful submission and retries once on a concurrent branch update.
 
-The workflow has `contents: write` permission, validates the JSON, migrates old
-AniList-keyed records to MAL keys, preserves timestamps, prints live progress,
-and commits only when data actually changes.
+## GitHub setup
 
-Every run uses eight deterministic parallel shards. Each episode belongs to
-exactly one shard, each shard uploads its result, and a final job validates and
-merges all results before making one commit. A full scan of 67,535 checks
-therefore becomes roughly 8,442 checks per job instead of one giant job.
+1. Create a repository and place `data/aniskip_data.json` in it (or move it to another path).
+2. Create a fine-grained GitHub token scoped only to that repository with **Contents: Read and write**.
+3. Import this project into Vercel.
+4. Add the environment variables shown in `.env.example`.
+5. Set `GITHUB_DATA_PATH` to the exact repository-relative JSON path, for example `data/aniskip_data.json`.
+6. Redeploy, open the Vercel URL, and submit through the UI.
 
-Daily non-full runs update currently airing shows and one deterministic slice
-of the older catalogue. A manual workflow run can enable `full_scan`.
+Never put `GITHUB_TOKEN` or `ADMIN_KEY` into frontend code or commit a real `.env` file.
 
-If organization/repository policy blocks the push, enable **Settings → Actions
-→ General → Workflow permissions → Read and write permissions**.
+## Local validation
+
+```bash
+npm install
+npm run check
+npx vercel dev
+```
+
+The included `data/aniskip_data.json` is an exact copy of the supplied starting database.

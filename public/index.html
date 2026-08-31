@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Anime Skip DB Editor</title>
+  <style>
+    :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:#07090d;color:#f5f7fb}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 15% 0,#242057 0,transparent 34%),radial-gradient(circle at 95% 15%,#43182f 0,transparent 30%),#07090d}.shell{width:min(920px,calc(100% - 28px));margin:auto;padding:48px 0 70px}.brand{display:flex;align-items:center;gap:12px;color:#b7b9c8;font-size:13px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}.dot{width:11px;height:11px;border-radius:99px;background:#8b5cf6;box-shadow:0 0 22px #8b5cf6}h1{font-size:clamp(35px,7vw,68px);line-height:.98;letter-spacing:-.055em;margin:26px 0 14px;max-width:760px}.lead{color:#a9adba;font-size:17px;line-height:1.65;max-width:680px;margin:0 0 30px}.card{background:rgba(16,18,25,.78);border:1px solid rgba(255,255,255,.1);border-radius:22px;padding:26px;box-shadow:0 24px 80px rgba(0,0,0,.34);backdrop-filter:blur(20px)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.wide{grid-column:1/-1}label{display:grid;gap:8px;color:#dfe1e9;font-size:13px;font-weight:700}input,textarea{width:100%;border:1px solid #303440;background:#0c0f15;color:#fff;border-radius:12px;padding:13px 14px;font:inherit;outline:none;transition:.2s}input:focus,textarea:focus{border-color:#8b5cf6;box-shadow:0 0 0 3px rgba(139,92,246,.15)}textarea{min-height:170px;resize:vertical;font-family:ui-monospace,SFMono-Regular,monospace;font-size:12px;line-height:1.5}.ranges{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:18px}.range{padding:18px;border:1px solid #282c37;border-radius:15px;background:#0b0d13}.range h2{font-size:14px;margin:0 0 14px}.range-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.actions{grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap}button{border:0;border-radius:12px;padding:13px 18px;font:inherit;font-weight:800;cursor:pointer}.primary{background:linear-gradient(135deg,#8b5cf6,#e13f82);color:white}.secondary{background:#20232d;color:#e9eaf0}.primary:disabled{opacity:.55;cursor:wait}.status{grid-column:1/-1;display:none;padding:15px;border-radius:12px;font-size:13px;line-height:1.5}.status.show{display:block}.status.ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);color:#b9f6ca}.status.error{background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.35);color:#ffc2cc}.hint{color:#747988;font-size:11px;font-weight:500}@media(max-width:680px){.shell{padding-top:28px}.card{padding:18px}.grid,.ranges{grid-template-columns:1fr}.wide,.ranges,.actions,.status{grid-column:auto}h1{font-size:42px}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="brand"><span class="dot"></span> Clixarena data tools</div>
+    <h1>Anime skip database editor.</h1>
+    <p class="lead">Enter the opening and credits timestamps in seconds. Existing MAL episode records are replaced; missing records are added and committed directly to GitHub.</p>
+    <form id="form" class="card grid">
+      <label>MAL ID<input id="malId" type="number" min="1" required placeholder="e.g. 52991" /></label>
+      <label>Episode<input id="episode" type="number" min="1" required placeholder="e.g. 1" /></label>
+      <div class="ranges">
+        <section class="range"><h2>Opening / Intro</h2><div class="range-fields"><label>Start<input id="opStart" type="number" min="0" step="any" /></label><label>End<input id="opEnd" type="number" min="0" step="any" /></label></div></section>
+        <section class="range"><h2>Ending / Credits</h2><div class="range-fields"><label>Start<input id="edStart" type="number" min="0" step="any" /></label><label>End<input id="edEnd" type="number" min="0" step="any" /></label></div></section>
+      </div>
+      <label class="wide">Admin key<input id="adminKey" type="password" required autocomplete="current-password" placeholder="Vercel ADMIN_KEY" /></label>
+      <div class="actions"><button type="button" class="secondary" id="lookup">Check existing</button><button type="submit" class="primary" id="submit">Write to GitHub</button></div>
+      <div id="status" class="status"></div>
+    </form>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const status = (message, ok=false) => { const el=$("status"); el.textContent=message; el.className=`status show ${ok?"ok":"error"}`; };
+    const numberOrNull = (id) => $(id).value === "" ? null : Number($(id).value);
+    const range = (prefix) => { const start=numberOrNull(`${prefix}Start`), end=numberOrNull(`${prefix}End`); return start===null&&end===null ? null : {start,end}; };
+    $("lookup").addEventListener("click", async () => {
+      try { const response=await fetch(`/api/record?malId=${encodeURIComponent($("malId").value)}&episode=${encodeURIComponent($("episode").value)}`); const data=await response.json(); if(!response.ok) throw new Error(data.error); status(data.exists ? `${data.anime}: existing record ${JSON.stringify(data.record)}` : "No existing episode record.", true); } catch(error){status(error.message)}
+    });
+    $("form").addEventListener("submit", async (event) => {
+      event.preventDefault(); $("submit").disabled=true;
+      try { const response=await fetch("/api/record",{method:"POST",headers:{"Content-Type":"application/json","X-Admin-Key":$("adminKey").value},body:JSON.stringify({malId:Number($("malId").value),episode:Number($("episode").value),op:range("op"),ed:range("ed")})}); const data=await response.json(); if(!response.ok) throw new Error(data.error); status(`${data.anime} episode ${data.episode} ${data.action}. Commit ${data.commit.slice(0,7)}.`,true); } catch(error){status(error.message)} finally{$("submit").disabled=false}
+    });
+  </script>
+</body>
+</html>
