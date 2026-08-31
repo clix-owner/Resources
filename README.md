@@ -6,6 +6,7 @@ A small protected web UI and serverless API that updates an existing AniSkip-sty
 
 - Method 1 directly adds or updates one MAL ID + episode record.
 - Method 2 loads a missing/partial episode queue for a MAL ID.
+- A Crunchyroll media ID can be fetched server-side to auto-fill `intro`/`credits`, or submitted directly for server-side fetch-and-save.
 - Looks up records by `malId` and episode number.
 - Lists episodes with no record, only `op`, or only `ed`, with an optional upper episode limit for ongoing anime.
 - Provides a one-by-one queue; completed records disappear immediately after a successful submission.

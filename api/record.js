@@ -117,9 +117,34 @@ function send(res, status, payload) {
   res.end(JSON.stringify(payload));
 }
 
+async function fetchCrunchyroll(mediaId) {
+  const id = String(mediaId || "").trim().toUpperCase();
+  if (!/^[A-Z0-9]{6,20}$/.test(id)) {
+    throw Object.assign(new Error("Invalid Crunchyroll media ID"), { status: 400 });
+  }
+  const response = await fetch(`https://static.crunchyroll.com/skip-events/production/${encodeURIComponent(id)}.json`, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(15000)
+  });
+  if (!response.ok) {
+    throw Object.assign(new Error(`Crunchyroll skip data unavailable for ${id} (${response.status})`), { status: 404 });
+  }
+  let data;
+  try { data = JSON.parse(await response.text()); }
+  catch { throw Object.assign(new Error("Crunchyroll returned a non-JSON response"), { status: 502 }); }
+  const op = data.intro ? range(data.intro, "Crunchyroll intro") : null;
+  const ed = data.credits ? range(data.credits, "Crunchyroll credits") : null;
+  if (!op && !ed) throw Object.assign(new Error(`No intro or credits timestamps found for ${id}`), { status: 404 });
+  return { requestedMediaId: id, mediaId: data.mediaId || id, op, ed, lastUpdated: data.lastUpdated || null };
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
+      if (req.query.mode === "crunchyroll") {
+        const result = await fetchCrunchyroll(req.query.mediaId);
+        return send(res, 200, { ok: true, ...result });
+      }
       const malId = Number(req.query.malId);
       if (!Number.isInteger(malId) || malId <= 0) return send(res, 400, { ok: false, error: "A valid malId is required" });
       const { database } = await loadDatabase();
@@ -167,8 +192,14 @@ export default async function handler(req, res) {
     if (!Number.isInteger(malId) || malId <= 0 || !Number.isInteger(episode) || episode <= 0) {
       return send(res, 400, { ok: false, error: "MAL ID and episode must be positive integers" });
     }
-    const op = range(req.body?.op, "Opening");
-    const ed = range(req.body?.ed, "Credits");
+    let op = range(req.body?.op, "Opening");
+    let ed = range(req.body?.ed, "Credits");
+    let crunchyroll = null;
+    if (req.body?.mediaId) {
+      crunchyroll = await fetchCrunchyroll(req.body.mediaId);
+      op ||= crunchyroll.op;
+      ed ||= crunchyroll.ed;
+    }
     if (!op && !ed) return send(res, 400, { ok: false, error: "Provide at least one opening or credits range" });
 
     // Retry once if another submission moves the branch while this one is writing.
@@ -213,6 +244,7 @@ export default async function handler(req, res) {
           episode,
           record: anime.episodes[String(episode)],
           complete: Boolean(anime.episodes[String(episode)].op && anime.episodes[String(episode)].ed),
+          crunchyroll: crunchyroll ? { requestedMediaId: crunchyroll.requestedMediaId, mediaId: crunchyroll.mediaId } : null,
           commit: sha
         });
       } catch (error) {
