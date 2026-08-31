@@ -4009,7 +4009,7 @@
     "malId": 21,
     "title": "ONE PIECE",
     "format": "TV",
-    "totalEpisodes": 1174,
+    "totalEpisodes": 1175,
     "episodes": {
       "1": {
         "op": {
@@ -12011,6 +12011,12 @@
         "ed": {
           "start": 1411,
           "end": 1416
+        }
+      },
+      "1175": {
+        "op": {
+          "start": 10,
+          "end": 98
         }
       }
     }
