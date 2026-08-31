@@ -3,39 +3,101 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Anime Skip DB Editor</title>
+  <title>Anime Skip DB Queue</title>
   <style>
-    :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:#07090d;color:#f5f7fb}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 15% 0,#242057 0,transparent 34%),radial-gradient(circle at 95% 15%,#43182f 0,transparent 30%),#07090d}.shell{width:min(920px,calc(100% - 28px));margin:auto;padding:48px 0 70px}.brand{display:flex;align-items:center;gap:12px;color:#b7b9c8;font-size:13px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}.dot{width:11px;height:11px;border-radius:99px;background:#8b5cf6;box-shadow:0 0 22px #8b5cf6}h1{font-size:clamp(35px,7vw,68px);line-height:.98;letter-spacing:-.055em;margin:26px 0 14px;max-width:760px}.lead{color:#a9adba;font-size:17px;line-height:1.65;max-width:680px;margin:0 0 30px}.card{background:rgba(16,18,25,.78);border:1px solid rgba(255,255,255,.1);border-radius:22px;padding:26px;box-shadow:0 24px 80px rgba(0,0,0,.34);backdrop-filter:blur(20px)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.wide{grid-column:1/-1}label{display:grid;gap:8px;color:#dfe1e9;font-size:13px;font-weight:700}input,textarea{width:100%;border:1px solid #303440;background:#0c0f15;color:#fff;border-radius:12px;padding:13px 14px;font:inherit;outline:none;transition:.2s}input:focus,textarea:focus{border-color:#8b5cf6;box-shadow:0 0 0 3px rgba(139,92,246,.15)}textarea{min-height:170px;resize:vertical;font-family:ui-monospace,SFMono-Regular,monospace;font-size:12px;line-height:1.5}.ranges{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:18px}.range{padding:18px;border:1px solid #282c37;border-radius:15px;background:#0b0d13}.range h2{font-size:14px;margin:0 0 14px}.range-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.actions{grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap}button{border:0;border-radius:12px;padding:13px 18px;font:inherit;font-weight:800;cursor:pointer}.primary{background:linear-gradient(135deg,#8b5cf6,#e13f82);color:white}.secondary{background:#20232d;color:#e9eaf0}.primary:disabled{opacity:.55;cursor:wait}.status{grid-column:1/-1;display:none;padding:15px;border-radius:12px;font-size:13px;line-height:1.5}.status.show{display:block}.status.ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);color:#b9f6ca}.status.error{background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.35);color:#ffc2cc}.hint{color:#747988;font-size:11px;font-weight:500}@media(max-width:680px){.shell{padding-top:28px}.card{padding:18px}.grid,.ranges{grid-template-columns:1fr}.wide,.ranges,.actions,.status{grid-column:auto}h1{font-size:42px}}
+    :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:#07090d;color:#f5f7fb}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 10% 0,#242057 0,transparent 30%),radial-gradient(circle at 96% 12%,#43182f 0,transparent 28%),#07090d}.shell{width:min(1180px,calc(100% - 28px));margin:auto;padding:42px 0 70px}.brand{display:flex;align-items:center;gap:11px;color:#b7b9c8;font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}.dot{width:10px;height:10px;border-radius:99px;background:#8b5cf6;box-shadow:0 0 22px #8b5cf6}h1{font-size:clamp(34px,6vw,62px);line-height:1;letter-spacing:-.05em;margin:22px 0 12px}.lead{color:#a9adba;font-size:16px;line-height:1.6;max-width:720px;margin:0 0 22px}.methods{display:flex;gap:8px;margin-bottom:18px}.method{background:#171a23;color:#999eac;border:1px solid #2b303b}.method.active{background:#fff;color:#101117;border-color:#fff}.lookup,.editor,.queue{background:rgba(16,18,25,.82);border:1px solid rgba(255,255,255,.1);border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,.28);backdrop-filter:blur(18px)}.lookup{display:grid;grid-template-columns:1fr 1fr auto;gap:14px;padding:18px;margin-bottom:18px;align-items:end}.workspace{display:grid;grid-template-columns:minmax(320px,.85fr) minmax(420px,1.15fr);gap:18px}.method-one .queue,.method-one .through-field,.method-one #load{display:none}.method-one .lookup{grid-template-columns:1fr}.method-one .workspace{grid-template-columns:minmax(420px,720px)}.method-one .editor{grid-column:1}.method-two #checkExisting{display:none}.queue{overflow:hidden}.queue-head{padding:20px;border-bottom:1px solid #272b35}.queue-head h2,.editor h2{font-size:17px;margin:0 0 5px}.muted{color:#858a98;font-size:12px}.episode-list{max-height:620px;overflow:auto;padding:8px}.empty{padding:46px 20px;text-align:center;color:#777d8b}.episode-item{width:100%;display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center;text-align:left;padding:12px;border:1px solid transparent;border-radius:12px;background:transparent;color:#fff;cursor:pointer}.episode-item:hover,.episode-item.active{background:#171a23;border-color:#303541}.episode-number{width:46px;height:38px;display:grid;place-items:center;border-radius:10px;background:#222631;font-size:12px;font-weight:900}.episode-copy strong{font-size:13px}.episode-copy span{display:block;color:#787e8d;font-size:10px;margin-top:4px}.badges{display:flex;gap:5px}.badge{padding:4px 6px;border-radius:99px;background:rgba(244,63,94,.12);border:1px solid rgba(244,63,94,.28);color:#ff9caf;font-size:9px;font-weight:900;text-transform:uppercase}.editor{padding:22px}.editor-head{display:flex;justify-content:space-between;align-items:start;gap:15px;margin-bottom:20px}.selected{padding:7px 10px;border-radius:9px;background:#232735;color:#d9dbe4;font-size:11px;font-weight:800}.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}.wide{grid-column:1/-1}label{display:grid;gap:7px;color:#dfe1e9;font-size:12px;font-weight:750}input{width:100%;border:1px solid #303440;background:#0c0f15;color:#fff;border-radius:11px;padding:12px 13px;font:inherit;outline:none}input:focus{border-color:#8b5cf6;box-shadow:0 0 0 3px rgba(139,92,246,.14)}.range{padding:16px;border:1px solid #282c37;border-radius:14px;background:#0b0d13}.range h3{font-size:13px;margin:0 0 13px}.range-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:18px}button{border:0;border-radius:11px;padding:12px 16px;font:inherit;font-weight:850;cursor:pointer}.primary{background:linear-gradient(135deg,#8b5cf6,#e13f82);color:#fff}.secondary{background:#222631;color:#e9eaf0}.primary:disabled,.secondary:disabled{opacity:.5;cursor:wait}.status{display:none;margin-top:16px;padding:13px;border-radius:11px;font-size:12px;line-height:1.5}.status.show{display:block}.status.ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);color:#b9f6ca}.status.error{background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.35);color:#ffc2cc}@media(max-width:800px){.workspace{grid-template-columns:1fr}.lookup{grid-template-columns:1fr 1fr}.lookup button{grid-column:1/-1}.episode-list{max-height:360px}}@media(max-width:520px){.shell{padding-top:26px}.lookup,.grid{grid-template-columns:1fr}.wide{grid-column:auto}.editor{padding:17px}h1{font-size:39px}.methods{display:grid;grid-template-columns:1fr 1fr}}
   </style>
 </head>
 <body>
   <main class="shell">
     <div class="brand"><span class="dot"></span> Clixarena data tools</div>
-    <h1>Anime skip database editor.</h1>
-    <p class="lead">Enter the opening and credits timestamps in seconds. Existing MAL episode records are replaced; missing records are added and committed directly to GitHub.</p>
-    <form id="form" class="card grid">
-      <label>MAL ID<input id="malId" type="number" min="1" required placeholder="e.g. 52991" /></label>
-      <label>Episode<input id="episode" type="number" min="1" required placeholder="e.g. 1" /></label>
-      <div class="ranges">
-        <section class="range"><h2>Opening / Intro</h2><div class="range-fields"><label>Start<input id="opStart" type="number" min="0" step="any" /></label><label>End<input id="opEnd" type="number" min="0" step="any" /></label></div></section>
-        <section class="range"><h2>Ending / Credits</h2><div class="range-fields"><label>Start<input id="edStart" type="number" min="0" step="any" /></label><label>End<input id="edEnd" type="number" min="0" step="any" /></label></div></section>
-      </div>
-      <label class="wide">Admin key<input id="adminKey" type="password" required autocomplete="current-password" placeholder="Vercel ADMIN_KEY" /></label>
-      <div class="actions"><button type="button" class="secondary" id="lookup">Check existing</button><button type="submit" class="primary" id="submit">Write to GitHub</button></div>
-      <div id="status" class="status"></div>
-    </form>
+    <h1>Anime timestamp editor.</h1>
+    <p class="lead">Update one episode directly or load a MAL title's missing and partial records as a guided queue.</p>
+    <nav class="methods" aria-label="Editor method"><button type="button" class="method" data-method="one">Method 1 · Direct editor</button><button type="button" class="method active" data-method="two">Method 2 · Missing queue</button></nav>
+    <div id="app" class="method-two">
+    <section class="lookup">
+      <label>MAL ID<input id="malId" type="number" min="1" value="21" /></label>
+      <label class="through-field">Check through episode<input id="through" type="number" min="1" placeholder="Auto: total or highest stored" /></label>
+      <button class="secondary" id="load">Load missing episodes</button>
+    </section>
+    <div class="workspace">
+      <section class="queue">
+        <header class="queue-head"><h2 id="animeTitle">Episode queue</h2><div class="muted" id="summary">Enter a MAL ID to begin.</div></header>
+        <div class="episode-list" id="episodeList"><div class="empty">No queue loaded.</div></div>
+      </section>
+      <form id="form" class="editor">
+        <header class="editor-head"><div><h2>Edit timestamp record</h2><div class="muted">Existing values are preserved unless replaced below.</div></div><span class="selected" id="selected">No episode</span></header>
+        <div class="grid">
+          <label class="wide">Episode<input id="episode" type="number" min="1" required /></label>
+          <section class="range"><h3>Opening / Intro</h3><div class="range-fields"><label>Start<input id="opStart" type="number" min="0" step="any" /></label><label>End<input id="opEnd" type="number" min="0" step="any" /></label></div></section>
+          <section class="range"><h3>Ending / Credits</h3><div class="range-fields"><label>Start<input id="edStart" type="number" min="0" step="any" /></label><label>End<input id="edEnd" type="number" min="0" step="any" /></label></div></section>
+          <label class="wide">Password<input id="adminKey" type="password" required autocomplete="current-password" placeholder="Vercel ADMIN_KEY" /></label>
+        </div>
+        <div class="actions"><button type="button" class="secondary" id="checkExisting">Check existing</button><button type="submit" class="primary" id="submit">Save & continue</button></div>
+        <div id="status" class="status"></div>
+      </form>
+    </div>
+    </div>
   </main>
   <script>
     const $ = (id) => document.getElementById(id);
+    let queue = [], activeEpisode = null, method = "two";
     const status = (message, ok=false) => { const el=$("status"); el.textContent=message; el.className=`status show ${ok?"ok":"error"}`; };
+    const value = (id, next) => { $(id).value = next ?? ""; };
     const numberOrNull = (id) => $(id).value === "" ? null : Number($(id).value);
     const range = (prefix) => { const start=numberOrNull(`${prefix}Start`), end=numberOrNull(`${prefix}End`); return start===null&&end===null ? null : {start,end}; };
-    $("lookup").addEventListener("click", async () => {
-      try { const response=await fetch(`/api/record?malId=${encodeURIComponent($("malId").value)}&episode=${encodeURIComponent($("episode").value)}`); const data=await response.json(); if(!response.ok) throw new Error(data.error); status(data.exists ? `${data.anime}: existing record ${JSON.stringify(data.record)}` : "No existing episode record.", true); } catch(error){status(error.message)}
+    function selectEpisode(number) {
+      const item=queue.find(x=>x.episode===number); activeEpisode=number; value("episode",number);
+      value("opStart",item?.record?.op?.start); value("opEnd",item?.record?.op?.end);
+      value("edStart",item?.record?.ed?.start); value("edEnd",item?.record?.ed?.end);
+      $("selected").textContent=`Episode ${number}`; render();
+    }
+    function render() {
+      $("summary").textContent=queue.length ? `${queue.length} missing or partial episode${queue.length===1?"":"s"}` : "Queue complete.";
+      $("episodeList").innerHTML=queue.length ? queue.map(item=>`<button type="button" class="episode-item ${item.episode===activeEpisode?"active":""}" data-episode="${item.episode}"><span class="episode-number">${item.episode}</span><span class="episode-copy"><strong>Episode ${item.episode}</strong><span>${item.record?"Partial record":"No record"}</span></span><span class="badges">${item.missing.map(x=>`<i class="badge">${x}</i>`).join("")}</span></button>`).join("") : '<div class="empty">No missing timestamp records.</div>';
+      document.querySelectorAll(".episode-item").forEach(el=>el.onclick=()=>selectEpisode(Number(el.dataset.episode)));
+    }
+    async function loadQueue() {
+      $("load").disabled=true;
+      try {
+        const through=$("through").value ? `&through=${encodeURIComponent($("through").value)}` : "";
+        const response=await fetch(`/api/record?mode=missing&malId=${encodeURIComponent($("malId").value)}${through}`);
+        const data=await response.json(); if(!response.ok) throw new Error(data.error);
+        queue=data.items; $("animeTitle").textContent=data.anime; activeEpisode=null; render();
+        if(queue.length) selectEpisode(queue[0].episode);
+      } catch(error){status(error.message)} finally{$("load").disabled=false}
+    }
+    $("load").onclick=loadQueue;
+    document.querySelectorAll(".method").forEach(button=>button.onclick=()=>{
+      method=button.dataset.method; $("app").className=`method-${method}`;
+      document.querySelectorAll(".method").forEach(x=>x.classList.toggle("active",x===button));
+      $("submit").textContent=method==="one"?"Write to GitHub":"Save & continue";
+      $("selected").textContent=method==="one"?"Direct mode":(activeEpisode?`Episode ${activeEpisode}`:"No episode");
     });
+    $("checkExisting").onclick=async()=>{
+      try{
+        const episode=Number($("episode").value); const response=await fetch(`/api/record?malId=${encodeURIComponent($("malId").value)}&episode=${encodeURIComponent(episode)}`); const data=await response.json(); if(!response.ok) throw new Error(data.error);
+        value("opStart",data.record?.op?.start); value("opEnd",data.record?.op?.end); value("edStart",data.record?.ed?.start); value("edEnd",data.record?.ed?.end);
+        status(data.exists?`${data.anime}: existing values loaded.`:"No existing episode record.",true);
+      }catch(error){status(error.message)}
+    };
     $("form").addEventListener("submit", async (event) => {
       event.preventDefault(); $("submit").disabled=true;
-      try { const response=await fetch("/api/record",{method:"POST",headers:{"Content-Type":"application/json","X-Admin-Key":$("adminKey").value},body:JSON.stringify({malId:Number($("malId").value),episode:Number($("episode").value),op:range("op"),ed:range("ed")})}); const data=await response.json(); if(!response.ok) throw new Error(data.error); status(`${data.anime} episode ${data.episode} ${data.action}. Commit ${data.commit.slice(0,7)}.`,true); } catch(error){status(error.message)} finally{$("submit").disabled=false}
+      try {
+        const episode=Number($("episode").value);
+        const response=await fetch("/api/record",{method:"POST",headers:{"Content-Type":"application/json","X-Admin-Key":$("adminKey").value},body:JSON.stringify({malId:Number($("malId").value),episode,op:range("op"),ed:range("ed")})});
+        const data=await response.json(); if(!response.ok) throw new Error(data.error);
+        if(method==="two"){
+          const index=queue.findIndex(x=>x.episode===episode);
+          if(index>=0){
+            if(data.complete) queue.splice(index,1);
+            else queue[index]={episode,record:data.record,missing:[...(data.record.op?[]:["op"]),...(data.record.ed?[]:["ed"])]};
+          }
+          const next=queue[index] || queue[index-1] || queue[0]; activeEpisode=null; render();
+          if(next) selectEpisode(next.episode); else {$("selected").textContent="Queue complete"; value("episode",""); value("opStart",""); value("opEnd",""); value("edStart",""); value("edEnd","");}
+        }
+        status(`${data.anime} episode ${episode} saved.`,true);
+      } catch(error){status(error.message)} finally{$("submit").disabled=false}
     });
   </script>
 </body>

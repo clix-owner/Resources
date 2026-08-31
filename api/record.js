@@ -121,12 +121,39 @@ export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const malId = Number(req.query.malId);
-      const episode = Number(req.query.episode);
-      if (!Number.isInteger(malId) || malId <= 0 || !Number.isInteger(episode) || episode <= 0) {
-        return send(res, 400, { ok: false, error: "Valid malId and episode are required" });
-      }
+      if (!Number.isInteger(malId) || malId <= 0) return send(res, 400, { ok: false, error: "A valid malId is required" });
       const { database } = await loadDatabase();
       const found = findAnime(database, malId);
+      if (req.query.mode === "missing") {
+        if (!found) return send(res, 404, { ok: false, error: `MAL ID ${malId} is not in the database` });
+        const anime = found[1];
+        const storedEpisodes = Object.keys(anime.episodes || {}).map(Number).filter(Number.isInteger);
+        const maxStored = storedEpisodes.length ? Math.max(...storedEpisodes) : 0;
+        const requestedThrough = Number(req.query.through);
+        const through = Number.isInteger(requestedThrough) && requestedThrough > 0
+          ? requestedThrough
+          : (Number(anime.totalEpisodes) || maxStored);
+        const items = [];
+        for (let number = 1; number <= through; number += 1) {
+          const record = anime.episodes?.[String(number)] || null;
+          const missing = [];
+          if (!record?.op) missing.push("op");
+          if (!record?.ed) missing.push("ed");
+          if (missing.length) items.push({ episode: number, missing, record });
+        }
+        return send(res, 200, {
+          ok: true,
+          anime: anime.title,
+          malId,
+          through,
+          totalEpisodes: anime.totalEpisodes ?? null,
+          maxStored,
+          count: items.length,
+          items
+        });
+      }
+      const episode = Number(req.query.episode);
+      if (!Number.isInteger(episode) || episode <= 0) return send(res, 400, { ok: false, error: "A valid episode is required" });
       const record = found?.[1]?.episodes?.[String(episode)] || null;
       return send(res, 200, { ok: true, exists: Boolean(record), anime: found?.[1]?.title || null, record });
     }
@@ -161,7 +188,11 @@ export default async function handler(req, res) {
       const [, anime] = found;
       const previous = anime.episodes?.[String(episode)] || null;
       anime.episodes ||= {};
-      anime.episodes[String(episode)] = { ...(op ? { op } : {}), ...(ed ? { ed } : {}) };
+      anime.episodes[String(episode)] = {
+        ...(previous || {}),
+        ...(op ? { op } : {}),
+        ...(ed ? { ed } : {})
+      };
       anime.totalEpisodes = Math.max(Number(anime.totalEpisodes) || 0, episode);
 
       try {
@@ -181,6 +212,7 @@ export default async function handler(req, res) {
           malId,
           episode,
           record: anime.episodes[String(episode)],
+          complete: Boolean(anime.episodes[String(episode)].op && anime.episodes[String(episode)].ed),
           commit: sha
         });
       } catch (error) {

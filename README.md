@@ -4,11 +4,15 @@ A small protected web UI and serverless API that updates an existing AniSkip-sty
 
 ## Behaviour
 
+- Method 1 directly adds or updates one MAL ID + episode record.
+- Method 2 loads a missing/partial episode queue for a MAL ID.
 - Looks up records by `malId` and episode number.
-- Replaces the complete existing episode timestamp record when it exists.
+- Lists episodes with no record, only `op`, or only `ed`, with an optional upper episode limit for ongoing anime.
+- Provides a one-by-one queue; completed records disappear immediately after a successful submission.
+- Updates supplied ranges in an existing episode while preserving its other timestamp range.
 - Creates a missing episode record.
 - If the MAL anime itself is missing, AniList is queried by MAL ID and the normal top-level AniList ID record is created automatically.
-- Accepts opening and credits start/end timestamps manually in seconds and writes them as database `op` and `ed` ranges.
+- Accepts opening and credits start/end timestamps manually in seconds, merging supplied ranges while preserving an existing counterpart.
 - Uses GitHub's Git Data API, suitable for the included JSON file which is larger than the simple Contents API read limit.
 - Creates a normal Git commit for every successful submission and retries once on a concurrent branch update.
 
