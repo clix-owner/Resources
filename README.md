@@ -7,7 +7,6 @@ A small protected web UI and serverless API that updates an existing AniSkip-sty
 - Method 1 directly adds or updates one MAL ID + episode record.
 - Method 2 loads a missing/partial episode queue for a MAL ID.
 - A Crunchyroll media ID can be fetched server-side to auto-fill `intro`/`credits`, or submitted directly for server-side fetch-and-save.
-- Method 3 accepts a Crunchyroll **series ID**, obtains an anonymous catalog session, discovers every season and episode media ID, checks only the missing/partial episodes for skip events, previews usable results, and writes them in one GitHub commit.
 - Looks up records by `malId` and episode number.
 - Lists episodes with no record, only `op`, or only `ed`, with an optional upper episode limit for ongoing anime.
 - Provides a one-by-one queue; completed records disappear immediately after a successful submission.
@@ -26,8 +25,6 @@ A small protected web UI and serverless API that updates an existing AniSkip-sty
 4. Add the environment variables shown in `.env.example`.
 5. Set `GITHUB_DATA_PATH` to the exact repository-relative JSON path, for example `data/aniskip_data.json`.
 6. Redeploy, open the Vercel URL, and submit through the UI.
-
-`CRUNCHYROLL_BASIC_AUTH` is optional. Leave it unset initially; it is only an override for the anonymous catalog client credential if Crunchyroll changes it in the future.
 
 Never put `GITHUB_TOKEN` or `ADMIN_KEY` into frontend code or commit a real `.env` file.
 

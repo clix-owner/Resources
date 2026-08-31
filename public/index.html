@@ -6,15 +6,14 @@
   <title>Anime Skip DB Queue</title>
   <style>
     :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,sans-serif;background:#07090d;color:#f5f7fb}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 10% 0,#242057 0,transparent 30%),radial-gradient(circle at 96% 12%,#43182f 0,transparent 28%),#07090d}.shell{width:min(1180px,calc(100% - 28px));margin:auto;padding:42px 0 70px}.brand{display:flex;align-items:center;gap:11px;color:#b7b9c8;font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}.dot{width:10px;height:10px;border-radius:99px;background:#8b5cf6;box-shadow:0 0 22px #8b5cf6}h1{font-size:clamp(34px,6vw,62px);line-height:1;letter-spacing:-.05em;margin:22px 0 12px}.lead{color:#a9adba;font-size:16px;line-height:1.6;max-width:720px;margin:0 0 22px}.methods{display:flex;gap:8px;margin-bottom:18px}.method{background:#171a23;color:#999eac;border:1px solid #2b303b}.method.active{background:#fff;color:#101117;border-color:#fff}.lookup,.editor,.queue{background:rgba(16,18,25,.82);border:1px solid rgba(255,255,255,.1);border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,.28);backdrop-filter:blur(18px)}.lookup{display:grid;grid-template-columns:1fr 1fr auto;gap:14px;padding:18px;margin-bottom:18px;align-items:end}.workspace{display:grid;grid-template-columns:minmax(320px,.85fr) minmax(420px,1.15fr);gap:18px}.method-one .queue,.method-one .through-field,.method-one #load{display:none}.method-one .lookup{grid-template-columns:1fr}.method-one .workspace{grid-template-columns:minmax(420px,720px)}.method-one .editor{grid-column:1}.method-two #checkExisting{display:none}.queue{overflow:hidden}.queue-head{padding:20px;border-bottom:1px solid #272b35}.queue-head h2,.editor h2{font-size:17px;margin:0 0 5px}.muted{color:#858a98;font-size:12px}.episode-list{max-height:620px;overflow:auto;padding:8px}.empty{padding:46px 20px;text-align:center;color:#777d8b}.episode-item{width:100%;display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center;text-align:left;padding:12px;border:1px solid transparent;border-radius:12px;background:transparent;color:#fff;cursor:pointer}.episode-item:hover,.episode-item.active{background:#171a23;border-color:#303541}.episode-number{width:46px;height:38px;display:grid;place-items:center;border-radius:10px;background:#222631;font-size:12px;font-weight:900}.episode-copy strong{font-size:13px}.episode-copy span{display:block;color:#787e8d;font-size:10px;margin-top:4px}.badges{display:flex;gap:5px}.badge{padding:4px 6px;border-radius:99px;background:rgba(244,63,94,.12);border:1px solid rgba(244,63,94,.28);color:#ff9caf;font-size:9px;font-weight:900;text-transform:uppercase}.editor{padding:22px}.editor-head{display:flex;justify-content:space-between;align-items:start;gap:15px;margin-bottom:20px}.selected{padding:7px 10px;border-radius:9px;background:#232735;color:#d9dbe4;font-size:11px;font-weight:800}.grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}.wide{grid-column:1/-1}.crunchyroll-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}.crunchyroll-row button{height:43px}label{display:grid;gap:7px;color:#dfe1e9;font-size:12px;font-weight:750}input{width:100%;border:1px solid #303440;background:#0c0f15;color:#fff;border-radius:11px;padding:12px 13px;font:inherit;outline:none}input:focus{border-color:#8b5cf6;box-shadow:0 0 0 3px rgba(139,92,246,.14)}.range{padding:16px;border:1px solid #282c37;border-radius:14px;background:#0b0d13}.range h3{font-size:13px;margin:0 0 13px}.range-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:18px}button{border:0;border-radius:11px;padding:12px 16px;font:inherit;font-weight:850;cursor:pointer}.primary{background:linear-gradient(135deg,#8b5cf6,#e13f82);color:#fff}.secondary{background:#222631;color:#e9eaf0}.primary:disabled,.secondary:disabled{opacity:.5;cursor:wait}.status{display:none;margin-top:16px;padding:13px;border-radius:11px;font-size:12px;line-height:1.5}.status.show{display:block}.status.ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.35);color:#b9f6ca}.status.error{background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.35);color:#ffc2cc}@media(max-width:800px){.workspace{grid-template-columns:1fr}.lookup{grid-template-columns:1fr 1fr}.lookup button{grid-column:1/-1}.episode-list{max-height:360px}}@media(max-width:520px){.shell{padding-top:26px}.lookup,.grid,.crunchyroll-row{grid-template-columns:1fr}.wide{grid-column:auto}.editor{padding:17px}h1{font-size:39px}.methods{display:grid;grid-template-columns:1fr 1fr}}
-    .series-import{display:none;padding:22px;background:rgba(16,18,25,.82);border:1px solid rgba(255,255,255,.1);border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,.28);backdrop-filter:blur(18px)}.method-three .lookup,.method-three .workspace{display:none}.method-three .series-import{display:block}.series-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;align-items:end}.series-grid button{height:43px}.series-results{margin-top:18px;border:1px solid #282c37;border-radius:14px;overflow:hidden}.series-progress{padding:15px 16px;background:#0b0d13;border-bottom:1px solid #282c37;color:#aeb2bf;font-size:12px}.series-list{max-height:520px;overflow:auto}.series-row{display:grid;grid-template-columns:72px 1fr auto;gap:12px;padding:12px 16px;align-items:center;border-top:1px solid #20242d}.series-row:first-child{border-top:0}.series-row strong{font-size:12px}.series-row small{display:block;color:#747a88;margin-top:4px}.series-row code{font-size:10px;color:#b8a5ff}.series-row.ready{background:rgba(34,197,94,.04)}.series-row.failed{background:rgba(244,63,94,.04)}@media(max-width:800px){.series-grid{grid-template-columns:1fr 1fr}.series-grid button{grid-column:1/-1}}@media(max-width:520px){.series-grid{grid-template-columns:1fr}.series-import{padding:17px}.series-row{grid-template-columns:54px 1fr}.series-row code{grid-column:1/-1}}
   </style>
 </head>
 <body>
   <main class="shell">
     <div class="brand"><span class="dot"></span> Clixarena data tools</div>
     <h1>Anime timestamp editor.</h1>
-    <p class="lead">Update one episode, work through a missing queue, or import a Crunchyroll series automatically.</p>
-    <nav class="methods" aria-label="Editor method"><button type="button" class="method" data-method="one">Method 1 · Direct editor</button><button type="button" class="method active" data-method="two">Method 2 · Missing queue</button><button type="button" class="method" data-method="three">Method 3 · Series import</button></nav>
+    <p class="lead">Update one episode directly or load a MAL title's missing and partial records as a guided queue.</p>
+    <nav class="methods" aria-label="Editor method"><button type="button" class="method" data-method="one">Method 1 · Direct editor</button><button type="button" class="method active" data-method="two">Method 2 · Missing queue</button></nav>
     <div id="app" class="method-two">
     <section class="lookup">
       <label>MAL ID<input id="malId" type="number" min="1" value="21" /></label>
@@ -39,81 +38,15 @@
         <div id="status" class="status"></div>
       </form>
     </div>
-    <section class="series-import">
-      <header class="editor-head"><div><h2>Import a Crunchyroll series</h2><div class="muted">Find episode Media IDs, fetch skip events, then write all useful records in one commit.</div></div><span class="selected" id="importCount">Not scanned</span></header>
-      <div class="series-grid">
-        <label>MAL ID<input id="importMalId" type="number" min="1" value="21" /></label>
-        <label>Crunchyroll series ID<input id="seriesId" type="text" maxlength="20" placeholder="e.g. GRMG8ZQZR" /></label>
-        <label>Password<input id="importAdminKey" type="password" autocomplete="current-password" placeholder="Vercel ADMIN_KEY" /></label>
-        <button type="button" class="secondary" id="scanSeries">Scan & fetch timestamps</button>
-        <button type="button" class="primary" id="writeSeries" disabled>Write all to GitHub</button>
-      </div>
-      <div class="series-results"><div class="series-progress" id="seriesProgress">Enter the MAL ID, Crunchyroll series ID, and password.</div><div class="series-list" id="seriesList"><div class="empty">No series scanned.</div></div></div>
-      <div id="seriesStatus" class="status"></div>
-    </section>
     </div>
   </main>
   <script>
     const $ = (id) => document.getElementById(id);
-    let queue = [], activeEpisode = null, method = "two", seriesItems = [], seriesReady = [];
+    let queue = [], activeEpisode = null, method = "two";
     const status = (message, ok=false) => { const el=$("status"); el.textContent=message; el.className=`status show ${ok?"ok":"error"}`; };
-    const seriesStatus = (message, ok=false) => { const el=$("seriesStatus"); el.textContent=message; el.className=`status show ${ok?"ok":"error"}`; };
     const value = (id, next) => { $(id).value = next ?? ""; };
     const numberOrNull = (id) => $(id).value === "" ? null : Number($(id).value);
     const range = (prefix) => { const start=numberOrNull(`${prefix}Start`), end=numberOrNull(`${prefix}End`); return start===null&&end===null ? null : {start,end}; };
-    const escapeHtml = (text) => String(text ?? "").replace(/[&<>'"]/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char]));
-    const apiPost = async (body, key) => {
-      const response=await fetch("/api/record",{method:"POST",headers:{"Content-Type":"application/json","X-Admin-Key":key},body:JSON.stringify(body)});
-      const data=await response.json(); if(!response.ok) throw new Error(data.error); return data;
-    };
-    function renderSeries() {
-      $("importCount").textContent=seriesItems.length ? `${seriesReady.length} ready / ${seriesItems.length}` : "Not scanned";
-      if(!seriesItems.length) { $("seriesList").innerHTML='<div class="empty">No missing or partial episodes found.</div>'; return; }
-      const readyEpisodes=new Set(seriesReady.map((item)=>item.episode));
-      $("seriesList").innerHTML=seriesItems.map((item)=>{
-        const result=item.result; const ready=readyEpisodes.has(item.episode); const failed=result && !ready;
-        const detail=ready ? `${result.op?"OP "+result.op.start+"–"+result.op.end:""}${result.op&&result.ed?" · ":""}${result.ed?"ED "+result.ed.start+"–"+result.ed.end:""}` : (result?.error || "No skip data");
-        return `<div class="series-row ${ready?"ready":failed?"failed":""}"><strong>EP ${item.episode}</strong><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(detail)}</small></span><code>${escapeHtml(item.mediaId)}</code></div>`;
-      }).join("");
-    }
-    async function scanSeries() {
-      const key=$("importAdminKey").value, malId=Number($("importMalId").value), seriesId=$("seriesId").value.trim();
-      $("scanSeries").disabled=true; $("writeSeries").disabled=true; seriesItems=[]; seriesReady=[]; renderSeries();
-      try {
-        $("seriesProgress").textContent="Reading Crunchyroll seasons and episode Media IDs…";
-        const catalog=await apiPost({action:"series-episodes",malId,seriesId},key);
-        seriesItems=catalog.items.map((item)=>({...item,result:null})); renderSeries();
-        if(!seriesItems.length) { $("seriesProgress").textContent=`${catalog.catalogCount} catalog episodes found; database is already complete.`; seriesStatus("Nothing to import.",true); return; }
-        const size=40;
-        for(let start=0;start<seriesItems.length;start+=size){
-          const batch=seriesItems.slice(start,start+size); $("seriesProgress").textContent=`Fetching skip timestamps: ${Math.min(start+1,seriesItems.length)}–${Math.min(start+batch.length,seriesItems.length)} of ${seriesItems.length}…`;
-          const skips=await apiPost({action:"series-skips",items:batch.map(({episode,mediaId,mediaIds})=>({episode,mediaId,mediaIds}))},key);
-          const byEpisode=new Map(skips.results.map((item)=>[item.episode,item]));
-          for(const item of batch){
-            item.result=byEpisode.get(item.episode) || {ok:false,error:"No response"};
-            if(!item.result.ok) continue;
-            const op=item.missing.includes("op") ? item.result.op : null;
-            const ed=item.missing.includes("ed") ? item.result.ed : null;
-            if(op || ed) seriesReady.push({episode:item.episode,op,ed});
-          }
-          renderSeries();
-        }
-        $("seriesProgress").textContent=`Finished. ${seriesReady.length} episodes have new usable timestamps.`;
-        $("writeSeries").disabled=!seriesReady.length;
-        seriesStatus(seriesReady.length ? `Preview ready: ${seriesReady.length} episode records can be written.` : "No usable Crunchyroll timestamps found.",Boolean(seriesReady.length));
-      } catch(error) { $("seriesProgress").textContent="Scan stopped."; seriesStatus(error.message); }
-      finally { $("scanSeries").disabled=false; }
-    }
-    async function writeSeries() {
-      const key=$("importAdminKey").value; $("writeSeries").disabled=true;
-      try {
-        $("seriesProgress").textContent=`Writing ${seriesReady.length} records to GitHub in one commit…`;
-        const data=await apiPost({action:"bulk-write",malId:Number($("importMalId").value),records:seriesReady},key);
-        $("seriesProgress").textContent=`Saved ${data.count} records. Commit ${data.commit.slice(0,7)}.`;
-        seriesStatus(`${data.anime}: ${data.count} records saved in one GitHub commit.`,true);
-        seriesItems=[]; seriesReady=[]; renderSeries();
-      } catch(error) { seriesStatus(error.message); $("writeSeries").disabled=false; }
-    }
     function selectEpisode(number) {
       const item=queue.find(x=>x.episode===number); activeEpisode=number; value("episode",number);
       value("opStart",item?.record?.op?.start); value("opEnd",item?.record?.op?.end);
@@ -160,8 +93,6 @@
         status(`Crunchyroll timestamps loaded (${data.mediaId}).`,true);
       }catch(error){status(error.message)}finally{$("fetchCrunchyroll").disabled=false}
     };
-    $("scanSeries").onclick=scanSeries;
-    $("writeSeries").onclick=writeSeries;
     $("form").addEventListener("submit", async (event) => {
       event.preventDefault(); $("submit").disabled=true;
       try {
