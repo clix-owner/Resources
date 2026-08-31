@@ -281258,6 +281258,25 @@
       }
     }
   },
+  "178788": {
+    "anilistId": 178788,
+    "malId": 59192,
+    "title": "Demon Slayer: Kimetsu no Yaiba Infinity Castle",
+    "format": "MOVIE",
+    "totalEpisodes": 1,
+    "episodes": {
+      "1": {
+        "op": {
+          "start": 164,
+          "end": 174
+        },
+        "ed": {
+          "start": 9145,
+          "end": 9272
+        }
+      }
+    }
+  },
   "178789": {
     "anilistId": 178789,
     "malId": 59193,
