@@ -157,7 +157,9 @@
         const markerSpecial=(item)=>{
           const label=String(item?.episode||"").trim().toUpperCase();
           const title=String(item?.title||"").trim();
-          return /^SP(?:[0-9]+)?$/.test(label)||label==="RECAP"||label==="SPECIAL"||/^SPECIAL EPISODE\s*:/i.test(title);
+          const numericLabel=Number(label);
+          const fractionalEpisode=Number.isFinite(numericLabel)&&!Number.isInteger(numericLabel);
+          return fractionalEpisode||/^SP(?:[0-9]+)?$/.test(label)||label==="RECAP"||label==="SPECIAL"||/^SPECIAL EPISODE\s*:/i.test(title);
         };
         // A Crunchyroll seasons response can include a small companion
         // special-season. The most common non-SP season is the requested main
@@ -182,22 +184,37 @@
           title:String(item?.title||"").trim()
         }));
         const normalEpisodes=episodes.filter(item=>!isSpecial(item));
-        const numberingFields=["episode_number","sequence_number","episode"];
-        const fieldScore=(field)=>{
+        // Crunchyroll sequence_number can count an inserted recap (for
+        // example episode 13.5) and shift every following normal episode by
+        // one. season_order ranks only the remaining normal records, so a
+        // requested 1..N season range stays contiguous after specials are
+        // removed.
+        const orderedNormal=[...normalEpisodes].sort((a,b)=>{
+          const left=Number(a?.sequence_number),right=Number(b?.sequence_number);
+          return (Number.isFinite(left)?left:Number.MAX_SAFE_INTEGER)-(Number.isFinite(right)?right:Number.MAX_SAFE_INTEGER);
+        });
+        const seasonOrder=new Map(orderedNormal.map((item,index)=>[item,index+1]));
+        const numberingFields=[
+          {name:"episode_number",number:item=>Number(item?.episode_number)},
+          {name:"sequence_number",number:item=>Number(item?.sequence_number)},
+          {name:"episode",number:item=>Number(item?.episode)},
+          {name:"season_order",number:item=>seasonOrder.get(item)}
+        ];
+        const fieldScore=(strategy)=>{
           const seen=new Set();
           for(const item of normalEpisodes){
-            const number=Number(item?.[field]);
+            const number=strategy.number(item);
             if(Number.isInteger(number)&&number>=startEpisode&&number<=endEpisode) seen.add(number);
           }
           return seen.size;
         };
         const numberingField=numberingFields
-          .map((field,index)=>({field,index,score:fieldScore(field)}))
+          .map((strategy,index)=>({...strategy,index,score:fieldScore(strategy)}))
           .sort((a,b)=>b.score-a.score||a.index-b.index)[0];
         if(!numberingField||numberingField.score===0) throw new Error(`No episode numbering field matches range ${startEpisode}–${endEpisode}.`);
         const byEpisode=new Map(), duplicates=[];
         for(const item of normalEpisodes){
-          const number=Number(item?.[numberingField.field]), id=mediaIdFor(item);
+          const number=numberingField.number(item), id=mediaIdFor(item);
           if(!Number.isInteger(number)||number<startEpisode||number>endEpisode||!id) continue;
           if(byEpisode.has(number)) duplicates.push(number); else byEpisode.set(number,id);
         }
@@ -206,7 +223,7 @@
         if(missing.length) throw new Error(`No Media ID found for episode: ${missing.join(", ")}.`);
         $("bulkMediaIds").value=Array.from({length:endEpisode-startEpisode+1},(_,index)=>byEpisode.get(startEpisode+index)).join("\n");
         const specials=bulkSpecials.length?` Specials skipped: ${bulkSpecials.length} — ${bulkSpecials.map(x=>`${x.episode}: ${x.title} (${x.mediaId})`).join(", ")}.`:" Specials skipped: 0.";
-        const numberingLabel=numberingField.field==="sequence_number"?"season-relative sequence_number":numberingField.field;
+        const numberingLabel=numberingField.name==="sequence_number"?"season-relative sequence_number":numberingField.name==="season_order"?"normal-episode season order":numberingField.name;
         bulkStatus(`Extracted ${endEpisode-startEpisode+1} normal Media IDs for episodes ${startEpisode}–${endEpisode} using ${numberingLabel}.${specials}`,true);
       }catch(error){bulkStatus(error.message)}
     };
