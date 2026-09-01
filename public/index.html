@@ -28,7 +28,7 @@
       <form id="form" class="editor">
         <header class="editor-head"><div><h2>Edit timestamp record</h2><div class="muted">Existing values are preserved unless replaced below.</div></div><span class="selected" id="selected">No episode</span></header>
         <div class="grid">
-          <label class="wide">Episode<input id="episode" type="number" min="1" required /></label>
+          <label class="wide">Episode<input id="episode" type="number" min="0.001" step="any" required placeholder="e.g. 7 or 7.5" /></label>
           <div class="wide crunchyroll-row"><label>Crunchyroll media ID<input id="mediaId" type="text" maxlength="20" placeholder="e.g. GE00369378JAJP" /></label><button type="button" class="secondary" id="fetchCrunchyroll">Fetch timestamps</button></div>
           <section class="range"><h3>Opening / Intro</h3><div class="range-fields"><label>Start<input id="opStart" type="number" min="0" step="any" /></label><label>End<input id="opEnd" type="number" min="0" step="any" /></label></div></section>
           <section class="range"><h3>Ending / Credits</h3><div class="range-fields"><label>Start<input id="edStart" type="number" min="0" step="any" /></label><label>End<input id="edEnd" type="number" min="0" step="any" /></label></div></section>
@@ -169,16 +169,35 @@
         }
         const mainSeasonId=[...seasonCounts.entries()].sort((a,b)=>b[1]-a[1])[0]?.[0]||null;
         const isSpecial=(item)=>markerSpecial(item)||Boolean(mainSeasonId&&item?.season_id&&item.season_id!==mainSeasonId);
+        const mediaIdFor=(item)=>{
+          const versions=Array.isArray(item?.versions)?item.versions:[];
+          const original=versions.find(version=>version?.original===true&&String(version?.guid||"").trim())
+            ||versions.find(version=>version?.audio_locale==="ja-JP"&&String(version?.guid||"").trim());
+          return String(original?.guid||item?.id||"").trim();
+        };
         bulkSpecials=episodes.filter(isSpecial).map(item=>({
           episode:String(item?.episode||item?.episode_number||"Special"),
           episodeNumber:item?.episode_number??null,
-          mediaId:String(item?.id||"").trim(),
+          mediaId:mediaIdFor(item),
           title:String(item?.title||"").trim()
         }));
+        const normalEpisodes=episodes.filter(item=>!isSpecial(item));
+        const numberingFields=["episode_number","sequence_number","episode"];
+        const fieldScore=(field)=>{
+          const seen=new Set();
+          for(const item of normalEpisodes){
+            const number=Number(item?.[field]);
+            if(Number.isInteger(number)&&number>=startEpisode&&number<=endEpisode) seen.add(number);
+          }
+          return seen.size;
+        };
+        const numberingField=numberingFields
+          .map((field,index)=>({field,index,score:fieldScore(field)}))
+          .sort((a,b)=>b.score-a.score||a.index-b.index)[0];
+        if(!numberingField||numberingField.score===0) throw new Error(`No episode numbering field matches range ${startEpisode}–${endEpisode}.`);
         const byEpisode=new Map(), duplicates=[];
-        for(const item of episodes){
-          if(isSpecial(item)) continue;
-          const number=Number(item?.episode_number), id=String(item?.id||"").trim();
+        for(const item of normalEpisodes){
+          const number=Number(item?.[numberingField.field]), id=mediaIdFor(item);
           if(!Number.isInteger(number)||number<startEpisode||number>endEpisode||!id) continue;
           if(byEpisode.has(number)) duplicates.push(number); else byEpisode.set(number,id);
         }
@@ -187,7 +206,8 @@
         if(missing.length) throw new Error(`No Media ID found for episode: ${missing.join(", ")}.`);
         $("bulkMediaIds").value=Array.from({length:endEpisode-startEpisode+1},(_,index)=>byEpisode.get(startEpisode+index)).join("\n");
         const specials=bulkSpecials.length?` Specials skipped: ${bulkSpecials.length} — ${bulkSpecials.map(x=>`${x.episode}: ${x.title} (${x.mediaId})`).join(", ")}.`:" Specials skipped: 0.";
-        bulkStatus(`Extracted ${endEpisode-startEpisode+1} normal Media IDs for episodes ${startEpisode}–${endEpisode}.${specials}`,true);
+        const numberingLabel=numberingField.field==="sequence_number"?"season-relative sequence_number":numberingField.field;
+        bulkStatus(`Extracted ${endEpisode-startEpisode+1} normal Media IDs for episodes ${startEpisode}–${endEpisode} using ${numberingLabel}.${specials}`,true);
       }catch(error){bulkStatus(error.message)}
     };
   </script>

@@ -87,6 +87,19 @@ function range(value, label) {
   return { start, end };
 }
 
+// Episode identifiers may be fractional for recap/special entries (for
+// example 7.5). Normalizing through Number keeps lookup and write keys
+// consistent: "7.50", 7.5 and "7.5" all address the same JSON record.
+function episodeNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function episodeKey(value) {
+  const number = episodeNumber(value);
+  return number === null ? null : String(number);
+}
+
 async function writeDatabase(database, baseTreeSha, parentSha, dataPath, message) {
   const content = `${JSON.stringify(database, null, 2)}\n`;
   const blob = await gh(repoPath("/git/blobs"), {
@@ -203,9 +216,10 @@ export default async function handler(req, res) {
           items
         });
       }
-      const episode = Number(req.query.episode);
-      if (!Number.isInteger(episode) || episode <= 0) return send(res, 400, { ok: false, error: "A valid episode is required" });
-      const record = found?.[1]?.episodes?.[String(episode)] || null;
+      const episode = episodeNumber(req.query.episode);
+      const key = episodeKey(req.query.episode);
+      if (episode === null || key === null) return send(res, 400, { ok: false, error: "A valid positive episode number is required" });
+      const record = found?.[1]?.episodes?.[key] || null;
       return send(res, 200, { ok: true, exists: Boolean(record), anime: found?.[1]?.title || null, record });
     }
 
@@ -276,9 +290,10 @@ export default async function handler(req, res) {
         }
       }
     }
-    const episode = Number(req.body?.episode);
-    if (!Number.isInteger(malId) || malId <= 0 || !Number.isInteger(episode) || episode <= 0) {
-      return send(res, 400, { ok: false, error: "MAL ID and episode must be positive integers" });
+    const episode = episodeNumber(req.body?.episode);
+    const key = episodeKey(req.body?.episode);
+    if (!Number.isInteger(malId) || malId <= 0 || episode === null || key === null) {
+      return send(res, 400, { ok: false, error: "MAL ID must be a positive integer and episode must be a positive number" });
     }
     let op = range(req.body?.op, "Opening");
     let ed = range(req.body?.ed, "Credits");
@@ -305,9 +320,9 @@ export default async function handler(req, res) {
         createdAnime = true;
       }
       const [, anime] = found;
-      const previous = anime.episodes?.[String(episode)] || null;
+      const previous = anime.episodes?.[key] || null;
       anime.episodes ||= {};
-      anime.episodes[String(episode)] = {
+      anime.episodes[key] = {
         ...(previous || {}),
         ...(op ? { op } : {}),
         ...(ed ? { ed } : {})
@@ -330,8 +345,8 @@ export default async function handler(req, res) {
           anime: anime.title,
           malId,
           episode,
-          record: anime.episodes[String(episode)],
-          complete: Boolean(anime.episodes[String(episode)].op && anime.episodes[String(episode)].ed),
+          record: anime.episodes[key],
+          complete: Boolean(anime.episodes[key].op && anime.episodes[key].ed),
           crunchyroll: crunchyroll ? { requestedMediaId: crunchyroll.requestedMediaId, mediaId: crunchyroll.mediaId } : null,
           commit: sha
         });
