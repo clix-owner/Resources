@@ -42,6 +42,8 @@
         <div class="grid">
           <label>Start episode<input id="bulkStart" type="number" min="1" required placeholder="e.g. 1160" /></label>
           <label>End episode<input id="bulkEnd" type="number" min="1" required placeholder="e.g. 1174" /></label>
+          <label class="wide">Crunchyroll episodes response (JSON)<textarea id="bulkEpisodesJson" spellcheck="false" placeholder="Paste the full JSON response from the browser's episodes request here"></textarea></label>
+          <div class="wide"><button type="button" class="secondary" id="extractMediaIds">Extract range Media IDs</button><div class="muted" style="margin-top:8px">Reads <code>data[].episode_number</code> and <code>data[].id</code>, then fills the list below in the selected episode order.</div></div>
           <label class="wide">Ordered Crunchyroll Media IDs<textarea id="bulkMediaIds" required spellcheck="false" placeholder="One Media ID per line, in exact episode order&#10;GE003...&#10;GE003..."></textarea></label>
           <label class="wide">Password<input id="bulkAdminKey" type="password" required autocomplete="current-password" placeholder="Vercel ADMIN_KEY" /></label>
         </div>
@@ -140,6 +142,26 @@
         bulkStatus(`${data.anime}: ${data.count} episode${data.count===1?"":"s"} saved in one commit.${skipped?` ${skipped} timestamp-less episode${skipped===1?" was":"s were"} skipped.`:""}${skippedList}${partial?` ${partial} saved record${partial===1?" has":"s have"} only OP or ED data.`:""}`,true);
       }catch(error){bulkStatus(error.message)}finally{$("bulkSubmit").disabled=false}
     });
+    $("extractMediaIds").onclick=()=>{
+      try{
+        const startEpisode=Number($("bulkStart").value), endEpisode=Number($("bulkEnd").value);
+        if(!Number.isInteger(startEpisode)||!Number.isInteger(endEpisode)||startEpisode<1||endEpisode<startEpisode) throw new Error("Enter a valid start and end episode first.");
+        const parsed=JSON.parse($("bulkEpisodesJson").value);
+        const episodes=Array.isArray(parsed)?parsed:parsed?.data;
+        if(!Array.isArray(episodes)) throw new Error("Paste a Crunchyroll episodes JSON response with a data array.");
+        const byEpisode=new Map(), duplicates=[];
+        for(const item of episodes){
+          const number=Number(item?.episode_number), id=String(item?.id||"").trim();
+          if(!Number.isInteger(number)||number<startEpisode||number>endEpisode||!id) continue;
+          if(byEpisode.has(number)) duplicates.push(number); else byEpisode.set(number,id);
+        }
+        const missing=[]; for(let number=startEpisode;number<=endEpisode;number+=1) if(!byEpisode.has(number)) missing.push(number);
+        if(duplicates.length) throw new Error(`More than one Media ID found for episode: ${[...new Set(duplicates)].join(", ")}. Paste one audio/version response only.`);
+        if(missing.length) throw new Error(`No Media ID found for episode: ${missing.join(", ")}.`);
+        $("bulkMediaIds").value=Array.from({length:endEpisode-startEpisode+1},(_,index)=>byEpisode.get(startEpisode+index)).join("\n");
+        bulkStatus(`Extracted ${endEpisode-startEpisode+1} Media IDs for episodes ${startEpisode}–${endEpisode}.`,true);
+      }catch(error){bulkStatus(error.message)}
+    };
   </script>
 </body>
 </html>
