@@ -55,7 +55,7 @@
   </main>
   <script>
     const $ = (id) => document.getElementById(id);
-    let queue = [], activeEpisode = null, method = "two";
+    let queue = [], activeEpisode = null, method = "two", bulkSpecials = [];
     const status = (message, ok=false) => { const el=$("status"); el.textContent=message; el.className=`status show ${ok?"ok":"error"}`; };
     const bulkStatus = (message, ok=false) => { const el=$("bulkStatus"); el.textContent=message; el.className=`status show ${ok?"ok":"error"}`; };
     const value = (id, next) => { $(id).value = next ?? ""; };
@@ -137,9 +137,14 @@
         const response=await fetch("/api/record",{method:"POST",headers:{"Content-Type":"application/json","X-Admin-Key":$("bulkAdminKey").value},body:JSON.stringify({mode:"bulk",malId:Number($("malId").value),startEpisode,endEpisode,mediaIds})});
         const data=await response.json(); if(!response.ok) throw new Error(data.error);
         const partial=data.records.filter(x=>!x.complete).length;
-        const skipped=data.skipped?.length||0;
-        const skippedList=skipped?` Skipped: ${data.skipped.map(x=>`Episode ${x.episode} (${x.mediaId})`).join(", ")}.`:"";
-        bulkStatus(`${data.anime}: ${data.count} episode${data.count===1?"":"s"} saved in one commit.${skipped?` ${skipped} timestamp-less episode${skipped===1?" was":"s were"} skipped.`:""}${skippedList}${partial?` ${partial} saved record${partial===1?" has":"s have"} only OP or ED data.`:""}`,true);
+        const timestampSkipped=data.skipped||[];
+        const specialReport=bulkSpecials.length
+          ? ` Specials skipped: ${bulkSpecials.length} — ${bulkSpecials.map(x=>`${x.episode} (${x.mediaId})`).join(", ")}.`
+          : " Specials skipped: 0.";
+        const timestampReport=timestampSkipped.length
+          ? ` No-timestamp episodes skipped: ${timestampSkipped.length} — ${timestampSkipped.map(x=>`Episode ${x.episode} (${x.mediaId})`).join(", ")}.`
+          : " No-timestamp episodes skipped: 0.";
+        bulkStatus(`${data.anime}: applied ${data.count} episode${data.count===1?"":"s"} in one commit.${specialReport}${timestampReport}${partial?` ${partial} applied record${partial===1?" has":"s have"} only OP or ED data.`:""}`,true);
       }catch(error){bulkStatus(error.message)}finally{$("bulkSubmit").disabled=false}
     });
     $("extractMediaIds").onclick=()=>{
@@ -149,8 +154,29 @@
         const parsed=JSON.parse($("bulkEpisodesJson").value);
         const episodes=Array.isArray(parsed)?parsed:parsed?.data;
         if(!Array.isArray(episodes)) throw new Error("Paste a Crunchyroll episodes JSON response with a data array.");
+        const markerSpecial=(item)=>{
+          const label=String(item?.episode||"").trim().toUpperCase();
+          return /^SP[0-9]+$/.test(label)||label==="RECAP"||label==="SPECIAL";
+        };
+        // A Crunchyroll seasons response can include a small companion
+        // special-season. The most common non-SP season is the requested main
+        // season; records from other season IDs are treated as specials.
+        const seasonCounts=new Map();
+        for(const item of episodes){
+          if(markerSpecial(item)||!item?.season_id) continue;
+          seasonCounts.set(item.season_id,(seasonCounts.get(item.season_id)||0)+1);
+        }
+        const mainSeasonId=[...seasonCounts.entries()].sort((a,b)=>b[1]-a[1])[0]?.[0]||null;
+        const isSpecial=(item)=>markerSpecial(item)||Boolean(mainSeasonId&&item?.season_id&&item.season_id!==mainSeasonId);
+        bulkSpecials=episodes.filter(isSpecial).map(item=>({
+          episode:String(item?.episode||item?.episode_number||"Special"),
+          episodeNumber:item?.episode_number??null,
+          mediaId:String(item?.id||"").trim(),
+          title:String(item?.title||"").trim()
+        }));
         const byEpisode=new Map(), duplicates=[];
         for(const item of episodes){
+          if(isSpecial(item)) continue;
           const number=Number(item?.episode_number), id=String(item?.id||"").trim();
           if(!Number.isInteger(number)||number<startEpisode||number>endEpisode||!id) continue;
           if(byEpisode.has(number)) duplicates.push(number); else byEpisode.set(number,id);
@@ -159,7 +185,8 @@
         if(duplicates.length) throw new Error(`More than one Media ID found for episode: ${[...new Set(duplicates)].join(", ")}. Paste one audio/version response only.`);
         if(missing.length) throw new Error(`No Media ID found for episode: ${missing.join(", ")}.`);
         $("bulkMediaIds").value=Array.from({length:endEpisode-startEpisode+1},(_,index)=>byEpisode.get(startEpisode+index)).join("\n");
-        bulkStatus(`Extracted ${endEpisode-startEpisode+1} Media IDs for episodes ${startEpisode}–${endEpisode}.`,true);
+        const specials=bulkSpecials.length?` Specials skipped: ${bulkSpecials.length} — ${bulkSpecials.map(x=>`${x.episode} (${x.mediaId})`).join(", ")}.`:" Specials skipped: 0.";
+        bulkStatus(`Extracted ${endEpisode-startEpisode+1} normal Media IDs for episodes ${startEpisode}–${endEpisode}.${specials}`,true);
       }catch(error){bulkStatus(error.message)}
     };
   </script>
