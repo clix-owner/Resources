@@ -139,7 +139,7 @@
         const partial=data.records.filter(x=>!x.complete).length;
         const timestampSkipped=data.skipped||[];
         const specialReport=bulkSpecials.length
-          ? ` Specials skipped: ${bulkSpecials.length} — ${bulkSpecials.map(x=>`${x.episode} (${x.mediaId})`).join(", ")}.`
+          ? ` Specials skipped: ${bulkSpecials.length} — ${bulkSpecials.map(x=>`${x.episode}: ${x.title} (${x.mediaId})`).join(", ")}.`
           : " Specials skipped: 0.";
         const timestampReport=timestampSkipped.length
           ? ` No-timestamp episodes skipped: ${timestampSkipped.length} — ${timestampSkipped.map(x=>`Episode ${x.episode} (${x.mediaId})`).join(", ")}.`
@@ -156,7 +156,8 @@
         if(!Array.isArray(episodes)) throw new Error("Paste a Crunchyroll episodes JSON response with a data array.");
         const markerSpecial=(item)=>{
           const label=String(item?.episode||"").trim().toUpperCase();
-          return /^SP[0-9]+$/.test(label)||label==="RECAP"||label==="SPECIAL";
+          const title=String(item?.title||"").trim();
+          return /^SP(?:[0-9]+)?$/.test(label)||label==="RECAP"||label==="SPECIAL"||/^SPECIAL EPISODE\s*:/i.test(title);
         };
         // A Crunchyroll seasons response can include a small companion
         // special-season. The most common non-SP season is the requested main
@@ -185,7 +186,7 @@
         if(duplicates.length) throw new Error(`More than one Media ID found for episode: ${[...new Set(duplicates)].join(", ")}. Paste one audio/version response only.`);
         if(missing.length) throw new Error(`No Media ID found for episode: ${missing.join(", ")}.`);
         $("bulkMediaIds").value=Array.from({length:endEpisode-startEpisode+1},(_,index)=>byEpisode.get(startEpisode+index)).join("\n");
-        const specials=bulkSpecials.length?` Specials skipped: ${bulkSpecials.length} — ${bulkSpecials.map(x=>`${x.episode} (${x.mediaId})`).join(", ")}.`:" Specials skipped: 0.";
+        const specials=bulkSpecials.length?` Specials skipped: ${bulkSpecials.length} — ${bulkSpecials.map(x=>`${x.episode}: ${x.title} (${x.mediaId})`).join(", ")}.`:" Specials skipped: 0.";
         bulkStatus(`Extracted ${endEpisode-startEpisode+1} normal Media IDs for episodes ${startEpisode}–${endEpisode}.${specials}`,true);
       }catch(error){bulkStatus(error.message)}
     };
