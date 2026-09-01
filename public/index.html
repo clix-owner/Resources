@@ -136,7 +136,8 @@
         const data=await response.json(); if(!response.ok) throw new Error(data.error);
         const partial=data.records.filter(x=>!x.complete).length;
         const skipped=data.skipped?.length||0;
-        bulkStatus(`${data.anime}: ${data.count} episode${data.count===1?"":"s"} saved in one commit.${skipped?` ${skipped} timestamp-less episode${skipped===1?" was":"s were"} skipped.`:""}${partial?` ${partial} saved record${partial===1?" has":"s have"} only OP or ED data.`:""}`,true);
+        const skippedList=skipped?` Skipped: ${data.skipped.map(x=>`Episode ${x.episode} (${x.mediaId})`).join(", ")}.`:"";
+        bulkStatus(`${data.anime}: ${data.count} episode${data.count===1?"":"s"} saved in one commit.${skipped?` ${skipped} timestamp-less episode${skipped===1?" was":"s were"} skipped.`:""}${skippedList}${partial?` ${partial} saved record${partial===1?" has":"s have"} only OP or ED data.`:""}`,true);
       }catch(error){bulkStatus(error.message)}finally{$("bulkSubmit").disabled=false}
     });
   </script>
