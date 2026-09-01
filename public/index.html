@@ -164,13 +164,20 @@
         // A Crunchyroll seasons response can include a small companion
         // special-season. The most common non-SP season is the requested main
         // season; records from other season IDs are treated as specials.
+        // Crunchyroll season IDs are locale/version specific. The same logical
+        // season may appear as e.g. GS00371932ENUS for dubbed entries and
+        // GS00371932JAJP for original-only/newer entries. Compare the stable
+        // season-id base instead of the locale-suffixed raw ID, otherwise valid
+        // episodes can be misclassified as specials.
+        const seasonBase=(seasonId)=>String(seasonId||"").trim().replace(/(?:[A-Z]{4}|[A-Z]{2}\d{3})$/i,"");
         const seasonCounts=new Map();
         for(const item of episodes){
           if(markerSpecial(item)||!item?.season_id) continue;
-          seasonCounts.set(item.season_id,(seasonCounts.get(item.season_id)||0)+1);
+          const key=seasonBase(item.season_id);
+          if(key) seasonCounts.set(key,(seasonCounts.get(key)||0)+1);
         }
         const mainSeasonId=[...seasonCounts.entries()].sort((a,b)=>b[1]-a[1])[0]?.[0]||null;
-        const isSpecial=(item)=>markerSpecial(item)||Boolean(mainSeasonId&&item?.season_id&&item.season_id!==mainSeasonId);
+        const isSpecial=(item)=>markerSpecial(item)||Boolean(mainSeasonId&&item?.season_id&&seasonBase(item.season_id)!==mainSeasonId);
         const mediaIdFor=(item)=>{
           const versions=Array.isArray(item?.versions)?item.versions:[];
           const original=versions.find(version=>version?.original===true&&String(version?.guid||"").trim())
