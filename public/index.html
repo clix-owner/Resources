@@ -135,7 +135,8 @@
         const response=await fetch("/api/record",{method:"POST",headers:{"Content-Type":"application/json","X-Admin-Key":$("bulkAdminKey").value},body:JSON.stringify({mode:"bulk",malId:Number($("malId").value),startEpisode,endEpisode,mediaIds})});
         const data=await response.json(); if(!response.ok) throw new Error(data.error);
         const partial=data.records.filter(x=>!x.complete).length;
-        bulkStatus(`${data.anime}: episodes ${startEpisode}–${endEpisode} saved in one commit.${partial?` ${partial} record${partial===1?" has":"s have"} only OP or ED data.`:""}`,true);
+        const skipped=data.skipped?.length||0;
+        bulkStatus(`${data.anime}: ${data.count} episode${data.count===1?"":"s"} saved in one commit.${skipped?` ${skipped} timestamp-less episode${skipped===1?" was":"s were"} skipped.`:""}${partial?` ${partial} saved record${partial===1?" has":"s have"} only OP or ED data.`:""}`,true);
       }catch(error){bulkStatus(error.message)}finally{$("bulkSubmit").disabled=false}
     });
   </script>

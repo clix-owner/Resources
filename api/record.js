@@ -145,7 +145,19 @@ async function fetchAllCrunchyroll(mediaIds, limit = 6) {
     while (cursor < mediaIds.length) {
       const index = cursor;
       cursor += 1;
-      results[index] = await fetchCrunchyroll(mediaIds[index]);
+      try {
+        results[index] = { ok: true, value: await fetchCrunchyroll(mediaIds[index]) };
+      } catch (error) {
+        // A 404 means this media item has no usable skip-event data. It is a
+        // valid episode to omit, not a reason to discard timestamps fetched
+        // for the rest of an ordered range. Auth, rate-limit and network
+        // errors still stop the batch because their outcome is uncertain.
+        if (error.status === 404) {
+          results[index] = { ok: false, mediaId: mediaIds[index], error: error.message };
+        } else {
+          throw error;
+        }
+      }
     }
   }
   await Promise.all(Array.from({ length: Math.min(limit, mediaIds.length) }, worker));
@@ -215,9 +227,11 @@ export default async function handler(req, res) {
       }
       if (expected > 200) return send(res, 400, { ok: false, error: "Use batches of 200 episodes or fewer" });
 
-      // Fetch every item before changing GitHub. A bad/blocked media ID never
-      // produces a partial episode-range commit.
+      // Fetch every item before changing GitHub. Timestamp-less (404) items
+      // are skipped individually; uncertain API failures still abort the run.
       const timestamps = await fetchAllCrunchyroll(mediaIds);
+      const usable = timestamps.filter((item) => item.ok);
+      if (!usable.length) return send(res, 404, { ok: false, error: "None of these media IDs have intro or credits timestamps" });
       for (let attempt = 0; attempt < 2; attempt += 1) {
         const loaded = await loadDatabase();
         let found = findAnime(loaded.database, malId);
@@ -233,12 +247,19 @@ export default async function handler(req, res) {
         }
         const [, anime] = found;
         anime.episodes ||= {};
-        const records = timestamps.map((item, index) => {
+        const records = [];
+        const skipped = [];
+        timestamps.forEach((result, index) => {
           const episode = startEpisode + index;
+          if (!result.ok) {
+            skipped.push({ episode, mediaId: result.mediaId, error: result.error });
+            return;
+          }
+          const item = result.value;
           const previous = anime.episodes[String(episode)] || {};
           const record = { ...previous, ...(item.op ? { op: item.op } : {}), ...(item.ed ? { ed: item.ed } : {}) };
           anime.episodes[String(episode)] = record;
-          return { episode, requestedMediaId: item.requestedMediaId, mediaId: item.mediaId, record, complete: Boolean(record.op && record.ed) };
+          records.push({ episode, requestedMediaId: item.requestedMediaId, mediaId: item.mediaId, record, complete: Boolean(record.op && record.ed) });
         });
         anime.totalEpisodes = Math.max(Number(anime.totalEpisodes) || 0, endEpisode);
         try {
@@ -249,7 +270,7 @@ export default async function handler(req, res) {
             loaded.dataPath,
             `Update MAL ${malId} episodes ${startEpisode}-${endEpisode} Crunchyroll skip times`
           );
-          return send(res, 200, { ok: true, action: "bulk-updated", createdAnime, anime: anime.title, malId, startEpisode, endEpisode, count: records.length, records, commit: sha });
+          return send(res, 200, { ok: true, action: "bulk-updated", createdAnime, anime: anime.title, malId, startEpisode, endEpisode, count: records.length, records, skipped, commit: sha });
         } catch (error) {
           if (error.status !== 422 || attempt === 1) throw error;
         }
