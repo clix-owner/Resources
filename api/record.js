@@ -77,11 +77,20 @@ async function animeFromMal(malId) {
   };
 }
 
-function range(value, label) {
+function range(value, label, { optional = false } = {}) {
   if (value == null) return null;
-  const start = Number(value.start);
-  const end = Number(value.end);
-  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start) {
+
+  // Crunchyroll sometimes includes an event object even when that event has
+  // no usable timestamps (for example { start: null, end: null }). Treat
+  // those placeholder skip events as absent instead of failing the whole
+  // episode/bulk import. Manual input remains strict.
+  const source = Array.isArray(value) ? value[0] : value;
+  const start = Number(source?.start ?? source?.startTime ?? source?.start_time);
+  const end = Number(source?.end ?? source?.endTime ?? source?.end_time);
+  const valid = Number.isFinite(start) && Number.isFinite(end) && start >= 0 && end > start;
+
+  if (!valid) {
+    if (optional) return null;
     throw Object.assign(new Error(`${label} must have valid start/end seconds`), { status: 400 });
   }
   return { start, end };
@@ -145,8 +154,8 @@ async function fetchCrunchyroll(mediaId) {
   let data;
   try { data = JSON.parse(await response.text()); }
   catch { throw Object.assign(new Error("Crunchyroll returned a non-JSON response"), { status: 502 }); }
-  const op = data.intro ? range(data.intro, "Crunchyroll intro") : null;
-  const ed = data.credits ? range(data.credits, "Crunchyroll credits") : null;
+  const op = data.intro ? range(data.intro, "Crunchyroll intro", { optional: true }) : null;
+  const ed = data.credits ? range(data.credits, "Crunchyroll credits", { optional: true }) : null;
   if (!op && !ed) throw Object.assign(new Error(`No intro or credits timestamps found for ${id}`), { status: 404 });
   return { requestedMediaId: id, mediaId: data.mediaId || id, op, ed, lastUpdated: data.lastUpdated || null };
 }
