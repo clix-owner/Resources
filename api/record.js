@@ -138,6 +138,20 @@ async function fetchCrunchyroll(mediaId) {
   return { requestedMediaId: id, mediaId: data.mediaId || id, op, ed, lastUpdated: data.lastUpdated || null };
 }
 
+async function fetchAllCrunchyroll(mediaIds, limit = 6) {
+  const results = new Array(mediaIds.length);
+  let cursor = 0;
+  async function worker() {
+    while (cursor < mediaIds.length) {
+      const index = cursor;
+      cursor += 1;
+      results[index] = await fetchCrunchyroll(mediaIds[index]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, mediaIds.length) }, worker));
+  return results;
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
@@ -188,6 +202,59 @@ export default async function handler(req, res) {
     if (!providedKey || providedKey !== env("ADMIN_KEY")) return send(res, 401, { ok: false, error: "Invalid admin key" });
 
     const malId = Number(req.body?.malId);
+    if (req.body?.mode === "bulk") {
+      const startEpisode = Number(req.body?.startEpisode);
+      const endEpisode = Number(req.body?.endEpisode);
+      const mediaIds = Array.isArray(req.body?.mediaIds) ? req.body.mediaIds : [];
+      if (!Number.isInteger(malId) || malId <= 0 || !Number.isInteger(startEpisode) || !Number.isInteger(endEpisode) || startEpisode <= 0 || endEpisode < startEpisode) {
+        return send(res, 400, { ok: false, error: "MAL ID and a valid episode range are required" });
+      }
+      const expected = endEpisode - startEpisode + 1;
+      if (mediaIds.length !== expected) {
+        return send(res, 400, { ok: false, error: `Episode range needs exactly ${expected} media IDs; received ${mediaIds.length}` });
+      }
+      if (expected > 200) return send(res, 400, { ok: false, error: "Use batches of 200 episodes or fewer" });
+
+      // Fetch every item before changing GitHub. A bad/blocked media ID never
+      // produces a partial episode-range commit.
+      const timestamps = await fetchAllCrunchyroll(mediaIds);
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const loaded = await loadDatabase();
+        let found = findAnime(loaded.database, malId);
+        let createdAnime = false;
+        if (!found) {
+          const created = await animeFromMal(malId);
+          if (loaded.database[created.key] && Number(loaded.database[created.key]?.malId) !== malId) {
+            throw Object.assign(new Error("AniList ID key collision"), { status: 409 });
+          }
+          loaded.database[created.key] = created.value;
+          found = [created.key, loaded.database[created.key]];
+          createdAnime = true;
+        }
+        const [, anime] = found;
+        anime.episodes ||= {};
+        const records = timestamps.map((item, index) => {
+          const episode = startEpisode + index;
+          const previous = anime.episodes[String(episode)] || {};
+          const record = { ...previous, ...(item.op ? { op: item.op } : {}), ...(item.ed ? { ed: item.ed } : {}) };
+          anime.episodes[String(episode)] = record;
+          return { episode, requestedMediaId: item.requestedMediaId, mediaId: item.mediaId, record, complete: Boolean(record.op && record.ed) };
+        });
+        anime.totalEpisodes = Math.max(Number(anime.totalEpisodes) || 0, endEpisode);
+        try {
+          const sha = await writeDatabase(
+            loaded.database,
+            loaded.treeSha,
+            loaded.headSha,
+            loaded.dataPath,
+            `Update MAL ${malId} episodes ${startEpisode}-${endEpisode} Crunchyroll skip times`
+          );
+          return send(res, 200, { ok: true, action: "bulk-updated", createdAnime, anime: anime.title, malId, startEpisode, endEpisode, count: records.length, records, commit: sha });
+        } catch (error) {
+          if (error.status !== 422 || attempt === 1) throw error;
+        }
+      }
+    }
     const episode = Number(req.body?.episode);
     if (!Number.isInteger(malId) || malId <= 0 || !Number.isInteger(episode) || episode <= 0) {
       return send(res, 400, { ok: false, error: "MAL ID and episode must be positive integers" });
