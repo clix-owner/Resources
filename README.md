@@ -7,7 +7,8 @@ A small protected web UI and serverless API that updates an existing AniSkip-sty
 - Method 1 directly adds or updates one MAL ID + episode record.
 - Method 2 loads a missing/partial episode queue for a MAL ID.
 - Method 3 accepts a full Crunchyroll episodes JSON response, detects and skips
-  `SP`, `SP...`, `Special Episode:`, recap, and companion special-season records, then extracts normal
+  `SP`, `SP...`, `Special Episode:`, recap, companion special-season records, and an isolated
+  numbered special before a contiguous regular-episode run, then extracts normal
   Media IDs by exact episode number for a selected range.
 - Method 3 fetches every normal Media ID and writes all usable timestamps in a
   single GitHub commit. Its result reports the applied count, every detected

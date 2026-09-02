@@ -177,7 +177,24 @@
           if(key) seasonCounts.set(key,(seasonCounts.get(key)||0)+1);
         }
         const mainSeasonId=[...seasonCounts.entries()].sort((a,b)=>b[1]-a[1])[0]?.[0]||null;
-        const isSpecial=(item)=>markerSpecial(item)||Boolean(mainSeasonId&&item?.season_id&&seasonBase(item.season_id)!==mainSeasonId);
+        const belongsToMainSeason=(item)=>!mainSeasonId||!item?.season_id||seasonBase(item.season_id)===mainSeasonId;
+        // Some numbered specials are not marked SP by Crunchyroll. Kaiju No. 8,
+        // for example, puts "Hoshina's Day Off" first as episode 1, followed by
+        // the real, contiguous episode 13..23 run. Treat that isolated leading
+        // number as a special only when every following main-season item forms
+        // a contiguous integer run; a normal season starting at 1 is unchanged.
+        const mainSeasonCandidates=episodes
+          .filter(item=>!markerSpecial(item)&&belongsToMainSeason(item))
+          .sort((a,b)=>Number(a?.sequence_number)-Number(b?.sequence_number));
+        const contextualSpecials=new Set();
+        if(mainSeasonCandidates.length>=3){
+          const [first,...rest]=mainSeasonCandidates;
+          const firstNumber=Number(first?.episode_number??first?.episode);
+          const restNumbers=rest.map(item=>Number(item?.episode_number??item?.episode));
+          const restIsContiguous=restNumbers.every((number,index)=>Number.isInteger(number)&&(index===0||number===restNumbers[index-1]+1));
+          if(Number.isInteger(firstNumber)&&restIsContiguous&&restNumbers[0]>firstNumber+1) contextualSpecials.add(first);
+        }
+        const isSpecial=(item)=>markerSpecial(item)||!belongsToMainSeason(item)||contextualSpecials.has(item);
         const mediaIdFor=(item)=>{
           const versions=Array.isArray(item?.versions)?item.versions:[];
           const original=versions.find(version=>version?.original===true&&String(version?.guid||"").trim())

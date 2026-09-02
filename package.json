@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vercel dev",
-    "check": "node scripts/check.mjs"
+    "check": "node scripts/check.mjs && node scripts/test-method3.mjs"
   },
   "devDependencies": {
     "vercel": "^46.1.1"
