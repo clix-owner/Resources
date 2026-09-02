@@ -44,3 +44,27 @@ npx vercel dev
 ```
 
 The included `data/aniskip_data.json` is an exact copy of the supplied starting database.
+
+## Automatic public JSON publishing
+
+This repository now includes `.github/workflows/publish-aniskip-json.yml`.
+
+Whenever `data/aniskip_data.json` is committed to the `main` branch, GitHub Actions
+publishes the current JSON to a separate public repository. Only the JSON file is
+kept in the target repository.
+
+Configure these in the **source repository → Settings → Secrets and variables → Actions**:
+
+Repository variables:
+
+- `PUBLIC_DATA_REPO` — `owner/public-repository`
+- `PUBLIC_DATA_BRANCH` — target branch, normally `main` (optional)
+- `PUBLIC_DATA_PATH` — filename/path in the public repo, normally `aniskip_data.json` (optional)
+
+Repository secret:
+
+- `PUBLIC_DATA_TOKEN` — fine-grained PAT with **Contents: Read and write** access to the target repository.
+
+The existing API writes the database through GitHub's Git Data API, producing a
+normal commit. That commit updates `data/aniskip_data.json`, so the workflow's
+`push` + `paths` trigger starts automatically after each database change.

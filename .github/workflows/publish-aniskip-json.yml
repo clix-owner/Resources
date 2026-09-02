@@ -1,0 +1,77 @@
+name: Publish AniSkip JSON
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "data/aniskip_data.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-aniskip-json
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    env:
+      TARGET_REPO: ${{ vars.PUBLIC_DATA_REPO }}
+      TARGET_BRANCH: ${{ vars.PUBLIC_DATA_BRANCH || 'main' }}
+      TARGET_PATH: ${{ vars.PUBLIC_DATA_PATH || 'aniskip_data.json' }}
+
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+
+      - name: Validate configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "data/aniskip_data.json" || {
+            echo "Missing source file: data/aniskip_data.json"
+            exit 1
+          }
+          test -n "$TARGET_REPO" || {
+            echo "Missing repository variable: PUBLIC_DATA_REPO (example: owner/public-data-repo)"
+            exit 1
+          }
+          python -m json.tool data/aniskip_data.json >/dev/null
+
+      - name: Checkout public data repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.PUBLIC_DATA_REPO }}
+          ref: ${{ vars.PUBLIC_DATA_BRANCH || 'main' }}
+          token: ${{ secrets.PUBLIC_DATA_TOKEN }}
+          path: public-data
+
+      - name: Publish JSON only
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # The target repository is treated as a JSON-only publication repo.
+          # Keep .git, remove everything else, then copy the current database.
+          find public-data -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+
+          mkdir -p "public-data/$(dirname "$TARGET_PATH")"
+          cp data/aniskip_data.json "public-data/$TARGET_PATH"
+
+          cd public-data
+
+          if git diff --quiet --exit-code && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            echo "Public JSON is already up to date."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+          git commit -m "chore: update AniSkip data"
+          git push origin "HEAD:$TARGET_BRANCH"
