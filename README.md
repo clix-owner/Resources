@@ -55,11 +55,7 @@ kept in the target repository.
 
 Configure these in the **source repository → Settings → Secrets and variables → Actions**:
 
-Repository variables:
-
-- `PUBLIC_DATA_REPO` — `owner/public-repository`
-- `PUBLIC_DATA_BRANCH` — target branch, normally `main` (optional)
-- `PUBLIC_DATA_PATH` — filename/path in the public repo, normally `aniskip_data.json` (optional)
+The public target is already configured in the workflow as `clix-owner/Resources-Clix`, branch `main`, path `aniskip_data.json`. No Actions variables are required.
 
 Repository secret:
 

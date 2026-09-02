@@ -20,9 +20,9 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      TARGET_REPO: ${{ vars.PUBLIC_DATA_REPO }}
-      TARGET_BRANCH: ${{ vars.PUBLIC_DATA_BRANCH || 'main' }}
-      TARGET_PATH: ${{ vars.PUBLIC_DATA_PATH || 'aniskip_data.json' }}
+      TARGET_REPO: clix-owner/Resources-Clix
+      TARGET_BRANCH: main
+      TARGET_PATH: aniskip_data.json
 
     steps:
       - name: Checkout source repository
@@ -36,17 +36,13 @@ jobs:
             echo "Missing source file: data/aniskip_data.json"
             exit 1
           }
-          test -n "$TARGET_REPO" || {
-            echo "Missing repository variable: PUBLIC_DATA_REPO (example: owner/public-data-repo)"
-            exit 1
-          }
           python -m json.tool data/aniskip_data.json >/dev/null
 
       - name: Checkout public data repository
         uses: actions/checkout@v4
         with:
-          repository: ${{ vars.PUBLIC_DATA_REPO }}
-          ref: ${{ vars.PUBLIC_DATA_BRANCH || 'main' }}
+          repository: clix-owner/Resources-Clix
+          ref: main
           token: ${{ secrets.PUBLIC_DATA_TOKEN }}
           path: public-data
 
