@@ -51,23 +51,35 @@ jobs:
         run: |
           set -euo pipefail
 
-          # The target repository is treated as a JSON-only publication repo.
-          # Keep .git, remove everything else, then copy the current database.
-          find public-data -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
-
           mkdir -p "public-data/$(dirname "$TARGET_PATH")"
           cp data/aniskip_data.json "public-data/$TARGET_PATH"
 
           cd public-data
-
-          if git diff --quiet --exit-code && [ -z "$(git ls-files --others --exclude-standard)" ]; then
-            echo "Public JSON is already up to date."
-            exit 0
-          fi
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add -A
+          # Only this workflow's file is staged. Other files in the shared
+          # public repository are never removed or staged.
+          git add -- "$TARGET_PATH"
+
+          if git diff --cached --quiet; then
+            echo "Public AniSkip JSON is already up to date."
+            exit 0
+          fi
+
           git commit -m "chore: update AniSkip data"
-          git push origin "HEAD:$TARGET_BRANCH"
+
+          # Another workflow may push to the same public repo at the same time.
+          # Rebase on the latest target branch and retry the push a few times.
+          for attempt in 1 2 3 4 5; do
+            if git push origin "HEAD:$TARGET_BRANCH"; then
+              exit 0
+            fi
+            echo "Push raced with another update; rebasing (attempt $attempt/5)..."
+            git fetch origin "$TARGET_BRANCH"
+            git rebase "origin/$TARGET_BRANCH"
+            sleep $((attempt * 2))
+          done
+
+          echo "Failed to publish after 5 attempts."
+          exit 1
